@@ -7,10 +7,10 @@ namespace ZapretikApp
     internal static class AppVersion
     {
         /// <summary>Displayed / compared version (Major.Minor.Patch).</summary>
-        public const string Current = "1.0.3";
+        public const string Current = "1.0.4";
 
         /// <summary>
-        /// Primary feed URL (kept for reference). UpdateChecker also tries CDN mirrors —
+        /// Primary feed URL (kept for reference). UpdateChecker also tries CDN mirrors вЂ”
         /// raw.githubusercontent.com is often blocked in some regions.
         /// </summary>
         public const string UpdateManifestUrl =
