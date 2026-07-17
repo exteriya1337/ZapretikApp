@@ -16,9 +16,21 @@ namespace ZapretikApp
 
     /// <summary>
     /// Fetches and parses latest.json from the update feed.
+    /// Tries several mirrors because raw.githubusercontent.com is often blocked in RU.
     /// </summary>
     internal static class UpdateChecker
     {
+        /// <summary>
+        /// Ordered mirrors. jsDelivr first — usually reachable when raw.githubusercontent is not.
+        /// </summary>
+        private static readonly string[] ManifestUrls =
+        {
+            "https://cdn.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json",
+            "https://fastly.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json",
+            "https://raw.githubusercontent.com/exteriya1337/ZapretikApp/main/update/latest.json",
+            "https://github.com/exteriya1337/ZapretikApp/raw/main/update/latest.json",
+        };
+
         public static bool TryGetLatest(out UpdateInfo info, out string error)
         {
             info = null;
@@ -32,37 +44,42 @@ namespace ZapretikApp
             {
             }
 
-            try
+            var errors = new StringBuilder();
+
+            foreach (var baseUrl in ManifestUrls)
             {
-                var request = (HttpWebRequest)WebRequest.Create(AppVersion.UpdateManifestUrl);
-                request.Method = "GET";
-                request.Timeout = 12000;
-                request.ReadWriteTimeout = 12000;
-                request.UserAgent = "ZapretikApp/" + AppVersion.Current;
-                request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-
-                string json;
-                using (var response = (HttpWebResponse)request.GetResponse())
-                using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+                try
                 {
-                    json = reader.ReadToEnd();
-                }
+                    // Cache-buster on raw/github; jsDelivr ignores unknown query but still OK.
+                    var url = baseUrl;
+                    if (baseUrl.IndexOf("jsdelivr", StringComparison.OrdinalIgnoreCase) < 0)
+                        url = baseUrl + (baseUrl.Contains("?") ? "&" : "?") + "_=" + DateTime.UtcNow.Ticks;
 
-                info = ParseManifest(json);
-                if (info == null || string.IsNullOrWhiteSpace(info.Version) || string.IsNullOrWhiteSpace(info.Url))
+                    var json = DownloadText(url);
+                    var parsed = ParseManifest(json);
+                    if (parsed == null ||
+                        string.IsNullOrWhiteSpace(parsed.Version) ||
+                        string.IsNullOrWhiteSpace(parsed.Url))
+                    {
+                        errors.AppendLine(baseUrl + " → некорректный JSON");
+                        continue;
+                    }
+
+                    info = parsed;
+                    error = null;
+                    return true;
+                }
+                catch (Exception ex)
                 {
-                    error = "Некорректный latest.json";
-                    info = null;
-                    return false;
+                    errors.AppendLine(baseUrl + " → " + ex.Message);
                 }
+            }
 
-                return true;
-            }
-            catch (Exception ex)
-            {
-                error = ex.Message;
-                return false;
-            }
+            error = errors.Length > 0
+                ? errors.ToString().Trim()
+                : "Не удалось загрузить latest.json";
+            info = null;
+            return false;
         }
 
         public static bool IsNewerThanCurrent(string remoteVersion)
@@ -74,6 +91,28 @@ namespace ZapretikApp
             if (!Version.TryParse(Normalize(remoteVersion), out remote))
                 return false;
             return remote > local;
+        }
+
+        private static string DownloadText(string url)
+        {
+            var request = (HttpWebRequest)WebRequest.Create(url);
+            request.Method = "GET";
+            request.Timeout = 10000;
+            request.ReadWriteTimeout = 10000;
+            request.UserAgent = "ZapretikApp/" + AppVersion.Current;
+            request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            request.AllowAutoRedirect = true;
+            request.KeepAlive = false;
+            // Reduce stale proxy/CDN caches where possible
+            request.Headers[HttpRequestHeader.CacheControl] = "no-cache";
+            request.Headers[HttpRequestHeader.Pragma] = "no-cache";
+
+            using (var response = (HttpWebResponse)request.GetResponse())
+            using (var stream = response.GetResponseStream())
+            using (var reader = new StreamReader(stream, Encoding.UTF8))
+            {
+                return reader.ReadToEnd();
+            }
         }
 
         private static string Normalize(string v)
@@ -96,6 +135,10 @@ namespace ZapretikApp
         {
             if (string.IsNullOrWhiteSpace(json))
                 return null;
+
+            // Strip UTF-8 BOM if present
+            if (json.Length > 0 && json[0] == '\uFEFF')
+                json = json.Substring(1);
 
             // Minimal JSON field extraction (no external JSON lib)
             return new UpdateInfo
