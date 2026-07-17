@@ -5,8 +5,8 @@ $ErrorActionPreference = "Stop"
 $AppName = "Zapretik"
 $ExeName = "ZapretikApp.exe"
 $InstallDir = Join-Path $env:LOCALAPPDATA "Zapretik"
-$ReleaseUrl = "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.0/ZapretikApp.exe"
-$ConfigUrl  = "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.0/ZapretikApp.exe.config"
+$ReleaseUrl = "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.1/ZapretikApp.exe"
+$ConfigUrl  = "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.1/ZapretikApp.exe.config"
 
 function Write-Step([string]$msg) {
     Write-Host ""

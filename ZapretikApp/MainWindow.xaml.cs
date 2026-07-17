@@ -1028,6 +1028,24 @@ namespace ZapretikApp
         private void SaveLastLaunch(BatFileItem bat)
         {
             var now = DateTime.Now;
+            var prevName = Settings.Default.LastLaunchedBatName;
+            var prevRelative = Settings.Default.LastLaunchedBatRelativePath;
+            var prevAt = Settings.Default.LastLaunchedAt;
+
+            // "Последний запуск" = strategy before the current one.
+            // Shift Last → Previous only when switching to a different bat.
+            var sameAsLast =
+                !string.IsNullOrWhiteSpace(prevRelative) &&
+                string.Equals(prevRelative, bat.RelativePath, StringComparison.OrdinalIgnoreCase);
+
+            if (!sameAsLast &&
+                (!string.IsNullOrWhiteSpace(prevName) || !string.IsNullOrWhiteSpace(prevRelative)))
+            {
+                Settings.Default.PreviousLaunchedBatName = prevName ?? string.Empty;
+                Settings.Default.PreviousLaunchedBatRelativePath = prevRelative ?? string.Empty;
+                Settings.Default.PreviousLaunchedAt = prevAt ?? string.Empty;
+            }
+
             Settings.Default.LastLaunchedBatName = bat.Name;
             Settings.Default.LastLaunchedBatRelativePath = bat.RelativePath;
             Settings.Default.LastLaunchedAt = now.ToString("o", CultureInfo.InvariantCulture);
@@ -1042,9 +1060,10 @@ namespace ZapretikApp
 
         private void RefreshLastLaunchUi()
         {
-            var name = Settings.Default.LastLaunchedBatName;
-            var relative = Settings.Default.LastLaunchedBatRelativePath;
-            var atRaw = Settings.Default.LastLaunchedAt;
+            // Show the previous strategy (before current install), not the one just launched.
+            var name = Settings.Default.PreviousLaunchedBatName;
+            var relative = Settings.Default.PreviousLaunchedBatRelativePath;
+            var atRaw = Settings.Default.PreviousLaunchedAt;
 
             if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(relative))
             {
@@ -1070,6 +1089,27 @@ namespace ZapretikApp
             else
             {
                 UiAnimation.SetText(TxtLastBatTime, string.Empty, slide: false);
+            }
+        }
+
+        private void BtnGitHub_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = AppVersion.GitHubRepoUrl,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                AppDialog.Show(
+                    this,
+                    "Не удалось открыть GitHub:\n" + ex.Message,
+                    "Ошибка",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
         }
 
