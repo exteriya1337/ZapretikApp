@@ -7,7 +7,7 @@ namespace ZapretikApp
     internal static class AppVersion
     {
         /// <summary>Displayed / compared version (Major.Minor.Patch).</summary>
-        public const string Current = "1.0.0";
+        public const string Current = "1.0.1";
 
         /// <summary>
         /// Raw URL to latest.json on GitHub (or any HTTPS host).
@@ -15,6 +15,9 @@ namespace ZapretikApp
         /// </summary>
         public const string UpdateManifestUrl =
             "https://raw.githubusercontent.com/exteriya1337/ZapretikApp/main/update/latest.json";
+
+        /// <summary>Public GitHub repository page.</summary>
+        public const string GitHubRepoUrl = "https://github.com/exteriya1337/ZapretikApp";
 
         public static string Display
         {

@@ -98,6 +98,51 @@ namespace ZapretikApp.Properties
                 this["LastLaunchedAt"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string PreviousLaunchedBatName
+        {
+            get
+            {
+                return ((string)(this["PreviousLaunchedBatName"]));
+            }
+            set
+            {
+                this["PreviousLaunchedBatName"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string PreviousLaunchedBatRelativePath
+        {
+            get
+            {
+                return ((string)(this["PreviousLaunchedBatRelativePath"]));
+            }
+            set
+            {
+                this["PreviousLaunchedBatRelativePath"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string PreviousLaunchedAt
+        {
+            get
+            {
+                return ((string)(this["PreviousLaunchedAt"]));
+            }
+            set
+            {
+                this["PreviousLaunchedAt"] = value;
+            }
+        }
     }
 }
 

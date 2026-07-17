@@ -979,24 +979,35 @@
                             </Border>
                         </DockPanel>
 
-                        <!-- Footer actions -->
-                        <StackPanel x:Name="FooterActions"
-                                    DockPanel.Dock="Bottom"
-                                    Orientation="Horizontal"
-                                    HorizontalAlignment="Right"
-                                    Margin="0,20,0,0"
-                                    Opacity="0">
-                            <Button x:Name="BtnStop"
-                                    Content="Снять службу"
+                        <!-- Footer: GitHub left, actions right -->
+                        <DockPanel x:Name="FooterActions"
+                                   DockPanel.Dock="Bottom"
+                                   Margin="0,20,0,0"
+                                   Opacity="0"
+                                   LastChildFill="False">
+                            <Button x:Name="BtnGitHub"
+                                    DockPanel.Dock="Left"
+                                    Content="GitHub"
                                     Style="{StaticResource GhostButton}"
-                                    Margin="0,0,10,0"
-                                    Visibility="Collapsed"
-                                    Click="BtnStop_Click"/>
-                            <Button x:Name="BtnStart"
-                                    Content="Установить службу"
-                                    Style="{StaticResource PrimaryButton}"
-                                    Click="BtnStart_Click"/>
-                        </StackPanel>
+                                    Padding="14,10"
+                                    VerticalAlignment="Center"
+                                    Click="BtnGitHub_Click"
+                                    ToolTip="Открыть репозиторий Zapretik на GitHub"/>
+                            <StackPanel DockPanel.Dock="Right"
+                                        Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button x:Name="BtnStop"
+                                        Content="Снять службу"
+                                        Style="{StaticResource GhostButton}"
+                                        Margin="0,0,10,0"
+                                        Visibility="Collapsed"
+                                        Click="BtnStop_Click"/>
+                                <Button x:Name="BtnStart"
+                                        Content="Установить службу"
+                                        Style="{StaticResource PrimaryButton}"
+                                        Click="BtnStart_Click"/>
+                            </StackPanel>
+                        </DockPanel>
 
                         <!-- Main content cards -->
                         <Grid>

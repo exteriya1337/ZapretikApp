@@ -1,6 +1,6 @@
-﻿{
-  "version": "1.0.0",
-  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.0/ZapretikApp.exe",
-  "sha256": "9a5d74b7d6bddaea89617a808a2efba78c286705b3dd3df847268bba59b3dc5d",
-  "notes": "Zapretik 1.0.0. Рекомендуется установка через ZapretikSetup в %LOCALAPPDATA%\\Zapretik."
+{
+  "version": "1.0.1",
+  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.1/ZapretikApp.exe",
+  "sha256": "853fa303d40eabde1f6938c3e7f68c1abac04ec6b2bcf13d107fee3522061faf",
+  "notes": "1.0.1: кнопка GitHub слева снизу; «Последний запуск» показывает предыдущую стратегию, а не только что установленную."
 }
