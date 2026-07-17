@@ -835,7 +835,7 @@
                                                FontWeight="SemiBold"
                                                VerticalAlignment="Center"/>
                                     <TextBlock x:Name="TxtAppVersion"
-                                               Text="v1.0.0"
+                                               Text="v1.0.5"
                                                Foreground="{StaticResource TextSecondary}"
                                                FontSize="11"
                                                Margin="8,0,0,0"

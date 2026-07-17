@@ -13,9 +13,9 @@ if errorlevel 1 (
 
 if not exist "%~dp0ZapretikSetup.ps1" (
   echo ERROR: ZapretikSetup.ps1 not found next to this .bat file.
-  echo Download BOTH files from the GitHub Release:
-  echo   ZapretikSetup.bat
-  echo   ZapretikSetup.ps1
+  echo Keep both files in the same installer folder:
+  echo   installer\ZapretikSetup.bat
+  echo   installer\ZapretikSetup.ps1
   pause
   exit /b 1
 )

@@ -67,7 +67,7 @@ function New-Shortcut([string]$shortcutPath, [string]$targetPath, [string]$descr
 
 try {
     Write-Host ""
-    Write-Host "  Zapretik Setup" -ForegroundColor Magenta
+    Write-Host "  Zapretik Setup 1.0.5" -ForegroundColor Magenta
     Write-Host "  Install dir: $InstallDir" -ForegroundColor DarkGray
     Write-Host ""
 

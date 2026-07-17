@@ -34,23 +34,36 @@
    ```
 4. Обнови `update/latest.json` (version, url, sha256, notes).
 5. Закоммить и запушь в `main`.
-6. Создай GitHub Release `v1.0.5`, приложи:
+6. Создай GitHub Release `vX.Y.Z` (заголовок: `Zapretik X.Y.Z`), приложи:
    - `ZapretikApp.exe`
-   - `ZapretikApp.exe.config` (если есть)
-   - **`latest.json`** (копия из `update/`) — чтобы `releases/latest/download/latest.json` работал
-7. Сбрось кэш jsDelivr (иначе старые клиенты 1.0.2 могут видеть 1.0.1):
+   - `ZapretikApp.exe.config`
+   - **`latest.json`** (из `update/`)
+   - `Zapretik_Installer.zip` — папка `installer/` (bat + ps1 вместе)
+   - опционально `Zapretik_X.Y.Z.zip` — полный пакет
+7. Сбрось кэш jsDelivr:
    ```
    https://purge.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json
    ```
-8. Проверь:
-   - raw: `https://raw.githubusercontent.com/exteriya1337/ZapretikApp/main/update/latest.json`
-   - API: `https://api.github.com/repos/exteriya1337/ZapretikApp/releases/latest`
-   - jsDelivr: `https://cdn.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json`
+8. Проверь Releases API и raw `latest.json`.
 
-## Важно про старые клиенты
+## Структура пакета
 
-| Версия клиента | Поведение |
-|----------------|-----------|
-| **1.0.2** | Берёт **первое** живое зеркало (часто jsDelivr). Если CDN отдаёт старый JSON ≤ 1.0.2 — обновление **не предложит**. Нужна ручная установка. |
-| **1.0.3+** | Выбирает max(version) по зеркалам. |
-| **1.0.5+** | Releases API + max по зеркалам + кнопка «Обновления» + зеркала скачивания. |
+```
+Zapretik_Release/
+  ZapretikApp.exe
+  ZapretikApp.exe.config
+  latest.json
+  installer/
+    ZapretikSetup.bat   ← запуск установки
+    ZapretikSetup.ps1
+```
+
+Инсталлятор ищет exe рядом с собой или на уровень выше (`installer\..`).
+
+## Клиенты
+
+| Версия | Поведение |
+|--------|-----------|
+| **≤1.0.2** | Может не увидеть обновление из‑за stale CDN — ставить вручную. |
+| **1.0.3+** | max(version) по зеркалам. |
+| **1.0.5+** | Releases API + зеркала + кнопка «Обновления». |
