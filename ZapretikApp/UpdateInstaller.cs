@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -9,6 +10,7 @@ namespace ZapretikApp
 {
     /// <summary>
     /// Downloads a new build and launches a batch updater that replaces the running exe.
+    /// Tries primary URL, then AlternateUrls, with retries.
     /// </summary>
     internal static class UpdateInstaller
     {
@@ -43,7 +45,7 @@ namespace ZapretikApp
             if (progress != null)
                 progress("Скачивание " + info.Version + "…");
 
-            DownloadFile(info.Url, downloadPath);
+            DownloadWithFallback(info, downloadPath, progress);
 
             if (!File.Exists(downloadPath) || new FileInfo(downloadPath).Length < 1024)
                 throw new InvalidOperationException("Скачанный файл пуст или слишком маленький.");
@@ -54,7 +56,9 @@ namespace ZapretikApp
                     progress("Проверка SHA256…");
                 var hash = ComputeSha256(downloadPath);
                 if (!string.Equals(hash, info.Sha256.Trim(), StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("SHA256 не совпал. Файл повреждён или подменён.");
+                    throw new InvalidOperationException(
+                        "SHA256 не совпал. Файл повреждён или подменён.\nОжидалось: " +
+                        info.Sha256.Trim() + "\nПолучено: " + hash);
             }
 
             if (progress != null)
@@ -75,14 +79,81 @@ namespace ZapretikApp
             Process.Start(psi);
         }
 
+        private static void DownloadWithFallback(UpdateInfo info, string destPath, Action<string> progress)
+        {
+            var urls = new List<string>();
+            AddUrl(urls, info.Url);
+            if (info.AlternateUrls != null)
+            {
+                foreach (var u in info.AlternateUrls)
+                    AddUrl(urls, u);
+            }
+
+            // Conventional latest-download shortcut (works once a release has the asset)
+            if (!string.IsNullOrWhiteSpace(info.Version))
+            {
+                AddUrl(urls,
+                    "https://github.com/exteriya1337/ZapretikApp/releases/latest/download/ZapretikApp.exe");
+                AddUrl(urls,
+                    "https://github.com/exteriya1337/ZapretikApp/releases/download/v" +
+                    info.Version.Trim().TrimStart('v', 'V') + "/ZapretikApp.exe");
+            }
+
+            Exception last = null;
+            for (var i = 0; i < urls.Count; i++)
+            {
+                var url = urls[i];
+                for (var attempt = 1; attempt <= 2; attempt++)
+                {
+                    try
+                    {
+                        if (progress != null && (i > 0 || attempt > 1))
+                            progress("Скачивание (зеркало " + (i + 1) + ", попытка " + attempt + ")…");
+
+                        if (File.Exists(destPath))
+                        {
+                            try { File.Delete(destPath); } catch { }
+                        }
+
+                        DownloadFile(url, destPath);
+
+                        if (File.Exists(destPath) && new FileInfo(destPath).Length >= 1024)
+                            return;
+                    }
+                    catch (Exception ex)
+                    {
+                        last = ex;
+                    }
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Не удалось скачать обновление со всех зеркал." +
+                (last != null ? "\n" + last.Message : string.Empty));
+        }
+
+        private static void AddUrl(List<string> urls, string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return;
+            url = url.Trim();
+            for (var i = 0; i < urls.Count; i++)
+            {
+                if (string.Equals(urls[i], url, StringComparison.OrdinalIgnoreCase))
+                    return;
+            }
+            urls.Add(url);
+        }
+
         private static void DownloadFile(string url, string destPath)
         {
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "GET";
             request.Timeout = 120000;
             request.ReadWriteTimeout = 120000;
-            request.UserAgent = "ZapretikApp/" + AppVersion.Current;
+            request.UserAgent = "ZapretikApp/" + AppVersion.Current + " (+https://github.com/exteriya1337/ZapretikApp)";
             request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            request.AllowAutoRedirect = true;
 
             using (var response = (HttpWebResponse)request.GetResponse())
             using (var input = response.GetResponseStream())
@@ -111,10 +182,6 @@ namespace ZapretikApp
         private static void WriteUpdaterScript(string scriptPath, string newExe, string targetExe)
         {
             // Wait for process exit, replace files, restart.
-            var targetDir = Path.GetDirectoryName(targetExe) ?? ".";
-            var configSrc = newExe + ".config"; // optional
-            var configDst = targetExe + ".config";
-
             var sb = new StringBuilder();
             sb.AppendLine("@echo off");
             sb.AppendLine("chcp 65001 >nul");
