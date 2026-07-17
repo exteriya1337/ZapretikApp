@@ -1,6 +1,6 @@
 {
   "version": "1.0.2",
   "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.2/ZapretikApp.exe",
-  "sha256": "62001a40dfaae9dcb345fbfb1caf51519d2d6321f0c43527e173b14763c56e94",
-  "notes": "1.0.2 (тест): исправлена проверка обновлений — зеркала CDN, проверка даже при автозапуске в трей, balloon если окно скрыто."
+  "sha256": "ba6db1cd3861d090bd14807b6c8fa38431c2ffb28fc52af93af59ee2b85c8946",
+  "notes": "1.0.2 (test): fixed update check — CDN mirrors, works with tray autostart, balloon when window hidden."
 }

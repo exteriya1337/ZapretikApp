@@ -45,6 +45,8 @@ namespace ZapretikApp
             }
 
             var errors = new StringBuilder();
+            UpdateInfo best = null;
+            Version bestVer = null;
 
             foreach (var baseUrl in ManifestUrls)
             {
@@ -65,14 +67,31 @@ namespace ZapretikApp
                         continue;
                     }
 
-                    info = parsed;
-                    error = null;
-                    return true;
+                    Version ver;
+                    if (!Version.TryParse(Normalize(parsed.Version), out ver))
+                    {
+                        errors.AppendLine(baseUrl + " → bad version " + parsed.Version);
+                        continue;
+                    }
+
+                    // Prefer the highest version across mirrors (CDN can lag behind raw).
+                    if (best == null || ver > bestVer)
+                    {
+                        best = parsed;
+                        bestVer = ver;
+                    }
                 }
                 catch (Exception ex)
                 {
                     errors.AppendLine(baseUrl + " → " + ex.Message);
                 }
+            }
+
+            if (best != null)
+            {
+                info = best;
+                error = null;
+                return true;
             }
 
             error = errors.Length > 0
