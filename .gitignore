@@ -1,0 +1,13 @@
+## Build
+**/bin/
+**/obj/
+**/.vs/
+*.user
+*.suo
+*.cache
+*.pdb
+*.log
+
+## OS
+Thumbs.db
+Desktop.ini

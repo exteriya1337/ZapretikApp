@@ -1,0 +1,206 @@
+<Window x:Class="ZapretikApp.AppDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Zapretik"
+        SizeToContent="Height"
+        Width="420"
+        MinHeight="160"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        FontFamily="Segoe UI"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        Cursor="Arrow"
+        ForceCursor="True"
+        ShowInTaskbar="False"
+        Topmost="True">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="TextPrimary" Color="#FFF0F0F2"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#FFA8A8B0"/>
+        <SolidColorBrush x:Key="BorderMuted" Color="#FF4A4A52"/>
+        <SolidColorBrush x:Key="Accent" Color="#FF7C8CFF"/>
+
+        <Style x:Key="DialogPrimaryButton" TargetType="Button">
+            <Setter Property="MinWidth" Value="96"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="#FF7C8CFF"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter x:Name="Label"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Opacity="0.92"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF9AA6FF"/>
+                                <Setter TargetName="Label" Property="Opacity" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.88"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DialogGhostButton" TargetType="Button">
+            <Setter Property="MinWidth" Value="96"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="Transparent"
+                                BorderBrush="#664A4A52"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter x:Name="Label"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Opacity="0.7"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#22FFFFFF"/>
+                                <Setter TargetName="Label" Property="Opacity" Value="1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent">
+                            <ContentPresenter x:Name="Icon"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Opacity="0.48"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Icon" Property="Opacity" Value="1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="14"
+            CornerRadius="14"
+            BorderBrush="#664A4A52"
+            BorderThickness="1"
+            Background="#FF2B2B2E"
+            Opacity="0"
+            x:Name="Chrome"
+            RenderTransformOrigin="0.5,0.5">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="0" Opacity="0.55" Color="Black"/>
+        </Border.Effect>
+        <Border.RenderTransform>
+            <ScaleTransform x:Name="ChromeScale" ScaleX="0.96" ScaleY="0.96"/>
+        </Border.RenderTransform>
+
+        <DockPanel>
+            <!-- Title bar -->
+            <Border DockPanel.Dock="Top"
+                    Height="38"
+                    Background="#12FFFFFF"
+                    CornerRadius="13,13,0,0"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid Margin="16,0,6,0">
+                    <TextBlock x:Name="TxtTitle"
+                               Text="Zapretik"
+                               Foreground="{StaticResource TextPrimary}"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <Button HorizontalAlignment="Right"
+                            Style="{StaticResource CaptionButton}"
+                            Click="BtnClose_Click">
+                        <Path Data="M 0,0 L 9,9 M 9,0 L 0,9"
+                              Stroke="White"
+                              StrokeThickness="1.5"
+                              Width="9" Height="9"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Body -->
+            <StackPanel Margin="20,16,20,18">
+                <DockPanel LastChildFill="True" Margin="0,0,0,18">
+                    <!-- Icon badge -->
+                    <Border x:Name="IconBadge"
+                            DockPanel.Dock="Left"
+                            Width="40" Height="40"
+                            CornerRadius="10"
+                            Margin="0,0,14,0"
+                            VerticalAlignment="Top"
+                            Background="#33E8A838">
+                        <TextBlock x:Name="TxtIcon"
+                                   Text="!"
+                                   Foreground="#FFFFC857"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+
+                    <TextBlock x:Name="TxtMessage"
+                               Text="Сообщение"
+                               Foreground="{StaticResource TextPrimary}"
+                               FontSize="14"
+                               TextWrapping="Wrap"
+                               LineHeight="21"
+                               VerticalAlignment="Center"/>
+                </DockPanel>
+
+                <StackPanel x:Name="ButtonPanel"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right">
+                    <Button x:Name="BtnSecondary"
+                            Content="Отмена"
+                            Style="{StaticResource DialogGhostButton}"
+                            Margin="0,0,8,0"
+                            Visibility="Collapsed"
+                            Click="BtnSecondary_Click"/>
+                    <Button x:Name="BtnPrimary"
+                            Content="OK"
+                            Style="{StaticResource DialogPrimaryButton}"
+                            IsDefault="True"
+                            Click="BtnPrimary_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</Window>
