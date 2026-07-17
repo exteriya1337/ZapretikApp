@@ -1,6 +1,6 @@
 {
-  "version": "1.0.4",
-  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.4/ZapretikApp.exe",
-  "sha256": "583857139d76e065224e8330c97a43abbc06d6367d9481f2d4446407c259700f",
-  "notes": "1.0.4 test update. Fixed auto-update: GitHub API feed, CDN mirrors, works with tray autostart."
+  "version": "1.0.5",
+  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.5/ZapretikApp.exe",
+  "sha256": "48d0880290dfaa74ca1b21c86b6e9fcb97b1297c42126388c871a2637f8fe74b",
+  "notes": "1.0.5: GitHub Releases API as primary feed (no jsDelivr lag), multi-mirror download, manual Updates button with error details."
 }

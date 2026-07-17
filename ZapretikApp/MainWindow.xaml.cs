@@ -125,7 +125,7 @@ namespace ZapretikApp
         }
 
         /// <summary>
-        /// Fetches latest.json once per process. Works for both normal and --tray starts.
+        /// Fetches update info once per process (silent). Works for normal and --tray starts.
         /// </summary>
         private void StartBackgroundUpdateCheck()
         {
@@ -140,7 +140,7 @@ namespace ZapretikApp
                 var ok = UpdateChecker.TryGetLatest(out info, out error);
                 if (!ok || info == null)
                 {
-                    // Silent on network errors at startup (mirrors already tried).
+                    // Silent on network errors at startup (user can press «Обновления»).
                     return;
                 }
 
@@ -151,6 +151,69 @@ namespace ZapretikApp
                 {
                     _pendingUpdate = info;
                     OfferPendingUpdate(fromTrayBalloon: IsInTray);
+                }));
+            });
+        }
+
+        /// <summary>
+        /// Manual check from footer button — always shows a result (update / up-to-date / error).
+        /// </summary>
+        private void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            // Allow prompt again even if user declined earlier this session.
+            _updatePromptShown = false;
+
+            if (BtnCheckUpdate != null)
+                BtnCheckUpdate.IsEnabled = false;
+            UiAnimation.SetText(TxtStatusDescription, "Проверка обновлений…", slide: false);
+
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                UpdateInfo info;
+                string error;
+                var ok = UpdateChecker.TryGetLatest(out info, out error);
+
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (BtnCheckUpdate != null)
+                        BtnCheckUpdate.IsEnabled = true;
+
+                    if (!ok || info == null)
+                    {
+                        var detail = string.IsNullOrWhiteSpace(error)
+                            ? "Нет ответа от серверов обновления."
+                            : error;
+                        if (detail.Length > 900)
+                            detail = detail.Substring(0, 900) + "…";
+
+                        AppDialog.Show(
+                            this,
+                            "Не удалось проверить обновления.\n\n" + detail +
+                            "\n\nМожно скачать вручную:\n" + AppVersion.GitHubLatestReleaseUrl,
+                            "Обновление Zapretik",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        UiAnimation.SetText(TxtStatusDescription, "Проверка обновлений не удалась", slide: false);
+                        return;
+                    }
+
+                    if (!UpdateChecker.IsNewerThanCurrent(info.Version))
+                    {
+                        AppDialog.Show(
+                            this,
+                            "У вас актуальная версия.\n\n" +
+                            "Сейчас: " + AppVersion.Current + "\n" +
+                            "На сервере: " + info.Version +
+                            (string.IsNullOrWhiteSpace(info.Source) ? string.Empty : "\nИсточник: " + info.Source),
+                            "Обновление Zapretik",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                        UiAnimation.SetText(TxtStatusDescription, "Версия актуальна (" + AppVersion.Display + ")", slide: false);
+                        return;
+                    }
+
+                    _pendingUpdate = info;
+                    PromptAndApplyUpdate(info);
                 }));
             });
         }
@@ -195,7 +258,7 @@ namespace ZapretikApp
 
             if (!AppDialog.Confirm(this, msg, "Обновление Zapretik"))
             {
-                // User declined — allow asking again next cold start (not this session spam).
+                // Declined for this auto-prompt; manual «Обновления» resets the flag.
                 return;
             }
 
