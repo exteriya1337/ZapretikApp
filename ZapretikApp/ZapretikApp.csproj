@@ -97,6 +97,7 @@
     <Compile Include="AppVersion.cs" />
     <Compile Include="UpdateChecker.cs" />
     <Compile Include="UpdateInstaller.cs" />
+    <Compile Include="ZapretDriveDownloader.cs" />
     <Compile Include="SmoothScrollViewer.cs" />
     <Compile Include="UiAnimation.cs" />
   </ItemGroup>

@@ -17,8 +17,8 @@
 
 ```json
 {
-  "version": "1.0.5",
-  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.5/ZapretikApp.exe",
+  "version": "1.0.6",
+  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.6/ZapretikApp.exe",
   "sha256": "хеш_sha256_от_exe_в_нижнем_регистре",
   "notes": "Что нового (показывается в окне обновления)"
 }
@@ -26,7 +26,7 @@
 
 ## Как выкатить обновление
 
-1. Подними `AppVersion.Current` и `AssemblyVersion` / `AssemblyFileVersion` (например `1.0.5`).
+1. Подними `AppVersion.Current` и `AssemblyVersion` / `AssemblyFileVersion` (например `1.0.6`).
 2. Собери Release: `ZapretikApp\bin\Release\ZapretikApp.exe`
 3. Посчитай SHA256:
    ```powershell
@@ -34,31 +34,23 @@
    ```
 4. Обнови `update/latest.json` (version, url, sha256, notes).
 5. Закоммить и запушь в `main`.
-6. Создай GitHub Release `vX.Y.Z` (заголовок: `Zapretik X.Y.Z`), приложи **только**:
-   - `ZapretikApp.exe` — приложение + цель автообновления
-   - `latest.json` — фид обновлений (SHA256 и notes)
-   - `Zapretik_Installer.zip` — `ZapretikSetup.bat` + `ZapretikSetup.ps1`
-7. Сбрось кэш jsDelivr:
+6. Создай GitHub Release `v1.0.6`, приложи:
+   - `ZapretikApp.exe`
+   - `ZapretikApp.exe.config` (если есть)
+   - **`latest.json`** (копия из `update/`) — чтобы `releases/latest/download/latest.json` работал
+7. Сбрось кэш jsDelivr (иначе старые клиенты 1.0.2 могут видеть 1.0.1):
    ```
    https://purge.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json
    ```
-8. Проверь Releases API и raw `latest.json`.
+8. Проверь:
+   - raw: `https://raw.githubusercontent.com/exteriya1337/ZapretikApp/main/update/latest.json`
+   - API: `https://api.github.com/repos/exteriya1337/ZapretikApp/releases/latest`
+   - jsDelivr: `https://cdn.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json`
 
-## Локальная папка (Desktop)
+## Важно про старые клиенты
 
-```
-Zapretik_Release/
-  installer/
-    ZapretikSetup.bat   ← запуск (скачает exe с GitHub, если его нет рядом)
-    ZapretikSetup.ps1
-```
-
-Инсталлятор: локальный exe (рядом / на уровень выше) или download с Release.
-
-## Клиенты
-
-| Версия | Поведение |
-|--------|-----------|
-| **≤1.0.2** | Может не увидеть обновление из‑за stale CDN — ставить вручную. |
-| **1.0.3+** | max(version) по зеркалам. |
-| **1.0.5+** | Releases API + зеркала + кнопка «Обновления». |
+| Версия клиента | Поведение |
+|----------------|-----------|
+| **1.0.2** | Берёт **первое** живое зеркало (часто jsDelivr). Если CDN отдаёт старый JSON ≤ 1.0.2 — обновление **не предложит**. Нужна ручная установка. |
+| **1.0.3+** | Выбирает max(version) по зеркалам. |
+| **1.0.5+** | Releases API + max по зеркалам + кнопка «Обновления» + зеркала скачивания. |
