@@ -25,9 +25,11 @@ namespace ZapretikApp
         /// </summary>
         private static readonly string[] ManifestUrls =
         {
+            // GitHub Contents API (raw Accept) — not stuck behind the same CDN as raw.githubusercontent.com/main
+            "https://api.github.com/repos/exteriya1337/ZapretikApp/contents/update/latest.json?ref=main",
+            "https://raw.githubusercontent.com/exteriya1337/ZapretikApp/main/update/latest.json",
             "https://cdn.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json",
             "https://fastly.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json",
-            "https://raw.githubusercontent.com/exteriya1337/ZapretikApp/main/update/latest.json",
             "https://github.com/exteriya1337/ZapretikApp/raw/main/update/latest.json",
         };
 
@@ -125,6 +127,10 @@ namespace ZapretikApp
             // Reduce stale proxy/CDN caches where possible
             request.Headers[HttpRequestHeader.CacheControl] = "no-cache";
             request.Headers[HttpRequestHeader.Pragma] = "no-cache";
+
+            // Contents API: ask for raw file body (not base64 JSON wrapper)
+            if (url.IndexOf("api.github.com", StringComparison.OrdinalIgnoreCase) >= 0)
+                request.Accept = "application/vnd.github.raw";
 
             using (var response = (HttpWebResponse)request.GetResponse())
             using (var stream = response.GetResponseStream())
