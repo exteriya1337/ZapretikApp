@@ -1,7 +1,6 @@
 ﻿{
   "version": "1.0.0",
-  "url": "https://github.com/deepc-dev/ZapretikApp/releases/download/v1.0.0/ZapretikApp.exe",
-  "sha256": "d5dd3ad84e9e65a90eeb1c75a761dcec82c183df357da63eb39842190da5610d",
-  "notes": "РџРµСЂРІС‹Р№ РїСѓР±Р»РёС‡РЅС‹Р№ СЂРµР»РёР· Zapretik СЃ Р°РІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµРј."
+  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.0/ZapretikApp.exe",
+  "sha256": "c8fa8db3886893600af66f2de6ee66bae732daf9aa6f165aa7d469d9d631dc4b",
+  "notes": "Zapretik 1.0.0 — первый релиз с автообновлением."
 }
-

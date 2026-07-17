@@ -1,89 +1,48 @@
-# Как создать репозиторий и включить автообновление
+# GitHub: exteriya1337 / ZapretikApp
 
-На этом ПК **нет GitHub CLI (`gh`) и нет входа в GitHub**, поэтому репозиторий нужно создать один раз вручную (5 минут). Код автообновления в приложении **уже есть**.
+## Быстрый старт (один раз)
 
-## 1. Создай репозиторий на GitHub
+### 1. Создай репозиторий
+1. Открой: https://github.com/new  
+2. Name: **`ZapretikApp`**  
+3. Public  
+4. **Без** галочек README/license (репо пустой)  
+5. Create repository  
 
-1. Зайди на https://github.com/new  
-2. **Repository name:** `ZapretikApp`  
-3. Public (чтобы raw-ссылки работали без токена)  
-4. **Create repository** (без README, если будешь пушить эту папку)
-
-Запомни свой логин, например: `ivanov`  
-Тогда raw-URL будет:
-`https://raw.githubusercontent.com/ivanov/ZapretikApp/main/update/latest.json`
-
-## 2. Поправь URL в приложении (если логин не deepc-dev)
-
-Открой файл:
-`ZapretikApp\AppVersion.cs`
-
-Строка:
-```csharp
-public const string UpdateManifestUrl =
-    "https://raw.githubusercontent.com/deepc-dev/ZapretikApp/main/update/latest.json";
-```
-
-Замени `deepc-dev` на **свой логин GitHub**.
-
-## 3. Залей проект в GitHub
-
-Открой PowerShell в папке `C:\Users\deepc\Desktop\ZapretikApp`:
+### 2. Залей код (PowerShell)
 
 ```powershell
 cd C:\Users\deepc\Desktop\ZapretikApp
-git init
-git add .
-git commit -m "Zapretik with auto-update"
-git branch -M main
-git remote add origin https://github.com/ТВОЙ_ЛОГИН/ZapretikApp.git
+git remote remove origin 2>$null
+git remote add origin https://github.com/exteriya1337/ZapretikApp.git
 git push -u origin main
 ```
 
-GitHub попросит войти (браузер или Personal Access Token).
+Войди в GitHub, когда попросит (браузер / token).
 
-## 4. Выложи первый Release (exe)
+### 3. Release v1.0.0
+1. https://github.com/exteriya1337/ZapretikApp/releases/new  
+2. Tag: **`v1.0.0`**  
+3. Title: Zapretik 1.0.0  
+4. Приложи файл: `C:\Users\deepc\Desktop\ZapretikApp.exe`  
+5. Publish release  
 
-1. Собери Release (или возьми exe с рабочего стола).  
-2. GitHub → твой репозиторий → **Releases** → **Create a new release**  
-3. Tag: `v1.0.0`  
-4. Приложи файл `ZapretikApp.exe`  
-5. Publish  
+### 4. Проверь latest.json
+Файл уже настроен:
+- version: `1.0.0`
+- url: `https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.0/ZapretikApp.exe`
 
-## 5. Обнови latest.json
+После push он будет доступен как:
+`https://raw.githubusercontent.com/exteriya1337/ZapretikApp/main/update/latest.json`
 
-В `update/latest.json` пропиши:
+## Новая версия (1.0.1 и дальше)
 
-- `version`: `1.0.0` (как в приложении сейчас)  
-- `url`: ссылка на exe из Releases  
-- `sha256`: из PowerShell:
+1. В `ZapretikApp\AppVersion.cs` → `Current = "1.0.1"`  
+2. Собрать Release  
+3. Release на GitHub + exe  
+4. Обновить `update/latest.json` (version, url, sha256, notes)  
+5. `git add .` → `git commit` → `git push`  
 
 ```powershell
 Get-FileHash C:\Users\deepc\Desktop\ZapretikApp.exe -Algorithm SHA256
 ```
-
-Закоммить и push:
-
-```powershell
-git add update/latest.json
-git commit -m "update manifest 1.0.0"
-git push
-```
-
-## 6. Как выкатывать 1.0.1, 1.0.2…
-
-1. В `AppVersion.cs` → `Current = "1.0.1"`  
-2. Собрать Release  
-3. Release на GitHub `v1.0.1` + exe  
-4. `latest.json` → version/url/sha256/notes  
-5. `git push`  
-
-У пользователей со **старой** версией при **обычном** запуске (не из трея) всплывёт окно обновления.
-
-## Поведение приложения
-
-| Запуск | Обновление |
-|--------|------------|
-| Двойной клик по exe | Проверка + плашка, если есть новая версия |
-| Автозапуск `--tray` | Без плашки (тихий фон) |
-| В title bar | `v1.0.0` (версия) |

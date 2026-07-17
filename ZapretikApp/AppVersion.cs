@@ -14,7 +14,7 @@ namespace ZapretikApp
         /// After you create the repo, replace OWNER/REPO if needed.
         /// </summary>
         public const string UpdateManifestUrl =
-            "https://raw.githubusercontent.com/deepc-dev/ZapretikApp/main/update/latest.json";
+            "https://raw.githubusercontent.com/exteriya1337/ZapretikApp/main/update/latest.json";
 
         public static string Display
         {

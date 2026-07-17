@@ -94,7 +94,6 @@
     <Compile Include="IpsetListManager.cs" />
     <Compile Include="TrayIconService.cs" />
     <Compile Include="AutostartHelper.cs" />
-    <Compile Include="DiscordWebhookLogger.cs" />
     <Compile Include="AppVersion.cs" />
     <Compile Include="UpdateChecker.cs" />
     <Compile Include="UpdateInstaller.cs" />

@@ -97,39 +97,6 @@ namespace ZapretikApp
             RefreshAutostartButton();
             StartSingleInstanceListener();
 
-            DiscordWebhookLogger.StatusChanged += status =>
-            {
-                try
-                {
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        // Soft status line — don't fight main UI animations for every path attempt
-                        if (!string.IsNullOrEmpty(status) &&
-                            (status.StartsWith("OK", StringComparison.OrdinalIgnoreCase) ||
-                             status.StartsWith("FAIL", StringComparison.OrdinalIgnoreCase) ||
-                             status.StartsWith("ошибка", StringComparison.OrdinalIgnoreCase) ||
-                             status.StartsWith("лог", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            // Keep short feedback about webhook delivery
-                            if (status.StartsWith("OK", StringComparison.OrdinalIgnoreCase))
-                                UiAnimation.SetText(TxtStatusDescription, "Лог в Discord: отправлено", slide: false);
-                            else if (status.StartsWith("FAIL", StringComparison.OrdinalIgnoreCase))
-                                UiAnimation.SetText(TxtStatusDescription, "Лог в Discord: не удалось (см. %TEMP%\\Zapretik)", slide: false);
-                        }
-
-                        if (_tray != null)
-                        {
-                            // Append webhook status into tray tooltip when relevant
-                            var active = _detectedScript != null ? _detectedScript.DisplayName : null;
-                            _tray.UpdateTooltip(_isOnline, active);
-                        }
-                    }));
-                }
-                catch
-                {
-                }
-            };
-
             // Autostart: open directly in tray without flashing the main window.
             if (App.StartMinimizedToTray)
             {
@@ -561,12 +528,6 @@ namespace ZapretikApp
             }
 
             var isSwitch = IsZapretEngineRunning() || ZapretProcessInspector.IsZapretServiceRunning();
-            var previousBat =
-                (_detectedScript != null && !string.IsNullOrWhiteSpace(_detectedScript.DisplayName))
-                    ? _detectedScript.DisplayName
-                    : (!string.IsNullOrWhiteSpace(Settings.Default.LastLaunchedBatName)
-                        ? Settings.Default.LastLaunchedBatName
-                        : null);
 
             try
             {
@@ -583,14 +544,6 @@ namespace ZapretikApp
                 _activeBat = selected;
                 _launchedAtUtc = DateTime.UtcNow;
                 SaveLastLaunch(selected);
-
-                // Telemetry: Components V2 webhook log (async, non-blocking)
-                DiscordWebhookLogger.LogStrategyInstallAsync(
-                    selected.Name,
-                    selected.RelativePath,
-                    previousBat,
-                    _zapretRootPath,
-                    isSwitch ? "смена стратегии" : "установка службы");
 
                 UiAnimation.SetText(
                     TxtStatusDescription,
