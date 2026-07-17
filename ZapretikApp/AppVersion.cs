@@ -7,14 +7,14 @@ namespace ZapretikApp
     internal static class AppVersion
     {
         /// <summary>Displayed / compared version (Major.Minor.Patch).</summary>
-        public const string Current = "1.0.1";
+        public const string Current = "1.0.2";
 
         /// <summary>
-        /// Raw URL to latest.json on GitHub (or any HTTPS host).
-        /// After you create the repo, replace OWNER/REPO if needed.
+        /// Primary feed URL (kept for reference). UpdateChecker also tries CDN mirrors —
+        /// raw.githubusercontent.com is often blocked in some regions.
         /// </summary>
         public const string UpdateManifestUrl =
-            "https://raw.githubusercontent.com/exteriya1337/ZapretikApp/main/update/latest.json";
+            "https://cdn.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json";
 
         /// <summary>Public GitHub repository page.</summary>
         public const string GitHubRepoUrl = "https://github.com/exteriya1337/ZapretikApp";

@@ -32,6 +32,9 @@ namespace ZapretikApp
         private bool _isClosingAnimated;
         private bool _exitRequested;
         private bool _suppressBatSelectionSave;
+        private bool _updateCheckStarted;
+        private bool _updatePromptShown;
+        private UpdateInfo _pendingUpdate;
         private readonly RectangleGeometry _chromeClip = new RectangleGeometry();
         private string _zapretRootPath = string.Empty;
         private readonly List<BatFileItem> _batFiles = new List<BatFileItem>();
@@ -111,23 +114,25 @@ namespace ZapretikApp
             if (!App.StartMinimizedToTray)
             {
                 enter.Begin(this);
-                // Cold start only (not --tray): check for updates after UI is ready
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    CheckForUpdatesOnColdStart();
-                }), DispatcherPriority.ApplicationIdle);
             }
-            else
+
+            // Always check for updates (including --tray autostart). Prompt when window is open;
+            // if still in tray, show balloon and prompt on first open.
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                // Tray start — no update popup
-            }
+                StartBackgroundUpdateCheck();
+            }), DispatcherPriority.ApplicationIdle);
         }
 
         /// <summary>
-        /// Shows update prompt only when user opens the app window (not when started into tray).
+        /// Fetches latest.json once per process. Works for both normal and --tray starts.
         /// </summary>
-        private void CheckForUpdatesOnColdStart()
+        private void StartBackgroundUpdateCheck()
         {
+            if (_updateCheckStarted)
+                return;
+            _updateCheckStarted = true;
+
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
                 UpdateInfo info;
@@ -135,7 +140,7 @@ namespace ZapretikApp
                 var ok = UpdateChecker.TryGetLatest(out info, out error);
                 if (!ok || info == null)
                 {
-                    // Silent on network errors at startup
+                    // Silent on network errors at startup (mirrors already tried).
                     return;
                 }
 
@@ -144,15 +149,42 @@ namespace ZapretikApp
 
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    PromptAndApplyUpdate(info);
+                    _pendingUpdate = info;
+                    OfferPendingUpdate(fromTrayBalloon: IsInTray);
                 }));
             });
         }
 
+        /// <summary>
+        /// Shows confirm dialog if window is open; otherwise balloon tip in tray.
+        /// </summary>
+        private void OfferPendingUpdate(bool fromTrayBalloon)
+        {
+            if (_pendingUpdate == null || _updatePromptShown)
+                return;
+
+            if (fromTrayBalloon || IsInTray)
+            {
+                if (_tray != null)
+                {
+                    _tray.ShowBalloon(
+                        "Обновление Zapretik",
+                        "Доступна v" + _pendingUpdate.Version + ". Откройте окно, чтобы обновить.",
+                        System.Windows.Forms.ToolTipIcon.Info);
+                }
+                return;
+            }
+
+            PromptAndApplyUpdate(_pendingUpdate);
+        }
+
         private void PromptAndApplyUpdate(UpdateInfo info)
         {
-            if (info == null)
+            if (info == null || _updatePromptShown)
                 return;
+
+            _updatePromptShown = true;
+            _pendingUpdate = info;
 
             var notes = string.IsNullOrWhiteSpace(info.Notes) ? string.Empty : "\n\n" + info.Notes;
             var msg =
@@ -162,7 +194,10 @@ namespace ZapretikApp
                 "Обновить сейчас? Приложение перезапустится.";
 
             if (!AppDialog.Confirm(this, msg, "Обновление Zapretik"))
+            {
+                // User declined — allow asking again next cold start (not this session spam).
                 return;
+            }
 
             try
             {
@@ -311,6 +346,11 @@ namespace ZapretikApp
             ApplyTrayPerformanceMode(false);
             // Quick refresh when user opens the window again.
             RefreshOnlineStatus(forceUi: true, resolveScript: true);
+
+            // If update was found while in tray (or check not started yet) — offer now.
+            StartBackgroundUpdateCheck();
+            if (_pendingUpdate != null && !_updatePromptShown)
+                OfferPendingUpdate(fromTrayBalloon: false);
         }
 
         private void HideToTray()
