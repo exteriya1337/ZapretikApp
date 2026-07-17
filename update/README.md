@@ -34,31 +34,26 @@
    ```
 4. Обнови `update/latest.json` (version, url, sha256, notes).
 5. Закоммить и запушь в `main`.
-6. Создай GitHub Release `vX.Y.Z` (заголовок: `Zapretik X.Y.Z`), приложи:
-   - `ZapretikApp.exe`
-   - `ZapretikApp.exe.config`
-   - **`latest.json`** (из `update/`)
-   - `Zapretik_Installer.zip` — папка `installer/` (bat + ps1 вместе)
-   - опционально `Zapretik_X.Y.Z.zip` — полный пакет
+6. Создай GitHub Release `vX.Y.Z` (заголовок: `Zapretik X.Y.Z`), приложи **только**:
+   - `ZapretikApp.exe` — приложение + цель автообновления
+   - `latest.json` — фид обновлений (SHA256 и notes)
+   - `Zapretik_Installer.zip` — `ZapretikSetup.bat` + `ZapretikSetup.ps1`
 7. Сбрось кэш jsDelivr:
    ```
    https://purge.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json
    ```
 8. Проверь Releases API и raw `latest.json`.
 
-## Структура пакета
+## Локальная папка (Desktop)
 
 ```
 Zapretik_Release/
-  ZapretikApp.exe
-  ZapretikApp.exe.config
-  latest.json
   installer/
-    ZapretikSetup.bat   ← запуск установки
+    ZapretikSetup.bat   ← запуск (скачает exe с GitHub, если его нет рядом)
     ZapretikSetup.ps1
 ```
 
-Инсталлятор ищет exe рядом с собой или на уровень выше (`installer\..`).
+Инсталлятор: локальный exe (рядом / на уровень выше) или download с Release.
 
 ## Клиенты
 
