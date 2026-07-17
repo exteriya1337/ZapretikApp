@@ -1216,6 +1216,137 @@ namespace ZapretikApp
             }
         }
 
+        private void BtnNoZapret_Click(object sender, RoutedEventArgs e)
+        {
+            var dest = ZapretDriveDownloader.GetDefaultDestination();
+            var confirm =
+                "Скачать Zapret с Google Drive и сразу указать путь в Zapretik?\n\n" +
+                "Папка:\n" + dest + "\n\n" +
+                "Существующие файлы в этой папке будут перезаписаны.\n" +
+                "Загрузка может занять несколько минут.";
+
+            if (!AppDialog.Confirm(this, confirm, "Скачать Zapret"))
+                return;
+
+            SetDownloadUiBusy(true);
+            ShowDownloadProgress("Подготовка…", 0, indeterminate: true);
+            UiAnimation.SetText(TxtStatusDescription, "Скачивание Zapret…", slide: false);
+
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    var result = ZapretDriveDownloader.Download(dest, info =>
+                    {
+                        if (info == null)
+                            return;
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            ShowDownloadProgress(
+                                info.Message,
+                                info.Percent,
+                                info.IsIndeterminate);
+                            if (!string.IsNullOrWhiteSpace(info.Message))
+                                UiAnimation.SetText(TxtStatusDescription, info.Message, slide: false);
+                        }));
+                    });
+
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        ShowDownloadProgress("Готово", 100, indeterminate: false);
+                        SetDownloadUiBusy(false);
+                        HideDownloadProgress();
+
+                        SetZapretPath(result.Path, save: true);
+
+                        var msg =
+                            "Zapret скачан и путь уже указан.\n\n" +
+                            result.Path + "\n\n" +
+                            "Файлов: " + result.Ok +
+                            (result.Fail > 0 ? (" (ошибок: " + result.Fail + ")") : string.Empty) +
+                            "\n\nВыберите стратегию в списке справа и нажмите «Запустить».";
+
+                        AppDialog.Show(
+                            this,
+                            msg,
+                            "Zapret готов",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }));
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        SetDownloadUiBusy(false);
+                        HideDownloadProgress();
+
+                        UiAnimation.SetText(
+                            TxtStatusDescription,
+                            "Не удалось скачать Zapret",
+                            slide: false);
+
+                        AppDialog.Show(
+                            this,
+                            "Не удалось скачать Zapret:\n" + ex.Message +
+                            "\n\nМожно скачать вручную:\n" + AppVersion.ZapretDownloadUrl,
+                            "Ошибка",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    }));
+                }
+            });
+        }
+
+        private void SetDownloadUiBusy(bool busy)
+        {
+            if (BtnNoZapret != null)
+                BtnNoZapret.IsEnabled = !busy;
+            if (BtnBrowseZapretCard != null)
+                BtnBrowseZapretCard.IsEnabled = !busy;
+        }
+
+        private void ShowDownloadProgress(string message, double percent, bool indeterminate)
+        {
+            if (PanelDownloadProgress != null)
+                PanelDownloadProgress.Visibility = Visibility.Visible;
+
+            if (TxtDownloadProgress != null && !string.IsNullOrWhiteSpace(message))
+                TxtDownloadProgress.Text = message;
+
+            if (BarDownload != null)
+            {
+                BarDownload.IsIndeterminate = indeterminate;
+                if (!indeterminate)
+                {
+                    if (percent < 0) percent = 0;
+                    if (percent > 100) percent = 100;
+                    BarDownload.Value = percent;
+                }
+            }
+
+            if (TxtDownloadPercent != null)
+            {
+                if (indeterminate)
+                    TxtDownloadPercent.Text = "…";
+                else
+                    TxtDownloadPercent.Text = ((int)Math.Round(percent)).ToString() + "%";
+            }
+        }
+
+        private void HideDownloadProgress()
+        {
+            if (PanelDownloadProgress != null)
+                PanelDownloadProgress.Visibility = Visibility.Collapsed;
+            if (BarDownload != null)
+            {
+                BarDownload.IsIndeterminate = false;
+                BarDownload.Value = 0;
+            }
+            if (TxtDownloadPercent != null)
+                TxtDownloadPercent.Text = "0%";
+        }
+
         private void LstBatFiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_suppressBatSelectionSave)

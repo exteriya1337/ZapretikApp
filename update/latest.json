@@ -1,6 +1,6 @@
 {
-  "version": "1.0.5",
-  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.5/ZapretikApp.exe",
-  "sha256": "48d0880290dfaa74ca1b21c86b6e9fcb97b1297c42126388c871a2637f8fe74b",
-  "notes": "1.0.5: GitHub Releases API as primary feed (no jsDelivr lag), multi-mirror download, manual Updates button with error details."
+  "version": "1.0.6",
+  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.6/ZapretikApp.exe",
+  "sha256": "3933814c89562053fb7ba2dc6046c92ee94051f3c5dd0caf0bb70de4f4fbeb87",
+  "notes": "1.0.6: Download Zapret button (Google Drive), confirm dialog, progress bar, auto-set Zapret path."
 }

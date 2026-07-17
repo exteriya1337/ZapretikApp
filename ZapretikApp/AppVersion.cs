@@ -7,7 +7,7 @@ namespace ZapretikApp
     internal static class AppVersion
     {
         /// <summary>Displayed / compared version (Major.Minor.Patch).</summary>
-        public const string Current = "1.0.5";
+        public const string Current = "1.0.6";
 
         /// <summary>
         /// Reference feed URL (jsDelivr). Prefer UpdateChecker multi-source discovery at runtime —
@@ -22,6 +22,13 @@ namespace ZapretikApp
         /// <summary>Latest release page.</summary>
         public const string GitHubLatestReleaseUrl =
             "https://github.com/exteriya1337/ZapretikApp/releases/latest";
+
+        /// <summary>Google Drive folder id with Zapret distribution (for users who do not have it yet).</summary>
+        public const string ZapretDriveFolderId = "16a_u33wp4LqphSkUMnuJie8IEb1p_3Aw";
+
+        /// <summary>Public Google Drive folder URL (manual fallback).</summary>
+        public const string ZapretDownloadUrl =
+            "https://drive.google.com/drive/folders/" + ZapretDriveFolderId;
 
         public static string Display
         {

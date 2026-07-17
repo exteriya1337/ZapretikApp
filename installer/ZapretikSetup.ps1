@@ -5,8 +5,8 @@ $ErrorActionPreference = "Stop"
 $AppName = "Zapretik"
 $ExeName = "ZapretikApp.exe"
 $InstallDir = Join-Path $env:LOCALAPPDATA "Zapretik"
-$ReleaseUrl = "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.5/ZapretikApp.exe"
-$ConfigUrl  = "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.5/ZapretikApp.exe.config"
+$ReleaseUrl = "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.6/ZapretikApp.exe"
+$ConfigUrl  = "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.6/ZapretikApp.exe.config"
 
 function Write-Step([string]$msg) {
     Write-Host ""
@@ -67,7 +67,7 @@ function New-Shortcut([string]$shortcutPath, [string]$targetPath, [string]$descr
 
 try {
     Write-Host ""
-    Write-Host "  Zapretik Setup 1.0.5" -ForegroundColor Magenta
+    Write-Host "  Zapretik Setup" -ForegroundColor Magenta
     Write-Host "  Install dir: $InstallDir" -ForegroundColor DarkGray
     Write-Host ""
 
