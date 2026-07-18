@@ -8,6 +8,12 @@ namespace ZapretikApp
     {
         private readonly string _zapretRoot;
 
+        /// <summary>Raised after a successful add/remove of an IP entry (UI refresh).</summary>
+        public event Action EntriesChanged;
+
+        /// <summary>True if the list was modified this session (restart once on close).</summary>
+        public bool HadChanges { get; private set; }
+
         public IpsetEditorWindow(string zapretRoot)
         {
             InitializeComponent();
@@ -29,7 +35,6 @@ namespace ZapretikApp
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = true;
             Close();
         }
 
@@ -75,6 +80,7 @@ namespace ZapretikApp
                 TxtIp.Clear();
                 TxtStatus.Text = "Добавлено: " + entry;
                 Reload();
+                RaiseEntriesChanged();
             }
             catch (Exception ex)
             {
@@ -109,11 +115,20 @@ namespace ZapretikApp
                 TxtIp.Clear();
                 TxtStatus.Text = "Удалено: " + entry;
                 Reload();
+                RaiseEntriesChanged();
             }
             catch (Exception ex)
             {
                 AppDialog.Show(this, ex.Message, "Zapretik", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
+        }
+
+        private void RaiseEntriesChanged()
+        {
+            HadChanges = true;
+            var handler = EntriesChanged;
+            if (handler != null)
+                handler();
         }
 
         private void Reload()

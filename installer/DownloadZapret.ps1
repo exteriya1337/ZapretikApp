@@ -134,6 +134,70 @@ function Download-DriveFile([string]$fileId, [string]$destPath) {
     return $false
 }
 
+# User settings preserved when overwriting existing Zapret install
+$script:PreserveRelative = @(
+    "utils\game_filter.enabled",
+    "utils\check_updates.enabled",
+    "lists\ipset-all.txt",
+    "lists\ipset-all.txt.backup",
+    "lists\ipset-exclude-user.txt",
+    "lists\list-general-user.txt",
+    "lists\list-exclude-user.txt"
+)
+
+function Backup-ZapretSettings([string]$zapretRoot) {
+    $backupRoot = Join-Path $env:TEMP ("Zapret_dl_settings_" + [Guid]::NewGuid().ToString("N"))
+    Ensure-Dir $backupRoot
+    $saved = New-Object System.Collections.Generic.List[string]
+    $rels = New-Object System.Collections.Generic.List[string]
+    foreach ($r in $script:PreserveRelative) { [void]$rels.Add($r) }
+
+    $listsDir = Join-Path $zapretRoot "lists"
+    if (Test-Path -LiteralPath $listsDir) {
+        Get-ChildItem -LiteralPath $listsDir -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '(?i)-user\.txt$' } |
+            ForEach-Object {
+                $rel = "lists\$($_.Name)"
+                if (-not $rels.Contains($rel)) { [void]$rels.Add($rel) }
+            }
+    }
+    $utilsDir = Join-Path $zapretRoot "utils"
+    if (Test-Path -LiteralPath $utilsDir) {
+        Get-ChildItem -LiteralPath $utilsDir -File -Filter "*.enabled" -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                $rel = "utils\$($_.Name)"
+                if (-not $rels.Contains($rel)) { [void]$rels.Add($rel) }
+            }
+    }
+
+    foreach ($rel in $rels) {
+        $src = Join-Path $zapretRoot $rel
+        if (Test-Path -LiteralPath $src) {
+            $dst = Join-Path $backupRoot $rel
+            Ensure-Dir (Split-Path -Parent $dst)
+            Copy-Item -LiteralPath $src -Destination $dst -Force
+            [void]$saved.Add($rel)
+        }
+    }
+    return @{ Dir = $backupRoot; Files = $saved }
+}
+
+function Restore-ZapretSettings([string]$zapretRoot, $backup) {
+    if (-not $backup -or -not $backup.Dir) { return 0 }
+    $n = 0
+    foreach ($rel in $backup.Files) {
+        $src = Join-Path $backup.Dir $rel
+        $dst = Join-Path $zapretRoot $rel
+        if (Test-Path -LiteralPath $src) {
+            Ensure-Dir (Split-Path -Parent $dst)
+            Copy-Item -LiteralPath $src -Destination $dst -Force
+            $n++
+        }
+    }
+    try { Remove-Item -LiteralPath $backup.Dir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    return $n
+}
+
 function Download-DriveFolder([string]$folderId, [string]$destDir, [int]$depth = 0) {
     if ($depth -gt 8) {
         Write-Host "  Skip deep folder: $destDir" -ForegroundColor Yellow
@@ -214,12 +278,31 @@ try {
     Write-Step "Destination: $destRoot"
     Ensure-Dir $destRoot
 
-    Write-Step "Downloading from Google Drive..."
+    $hadExisting = (Test-Path -LiteralPath (Join-Path $destRoot "bin\winws.exe")) -or
+                   (Test-Path -LiteralPath (Join-Path $destRoot "service.bat"))
+    $settingsBackup = $null
+    if ($hadExisting) {
+        Write-Step "Existing Zapret found — backing up user settings..."
+        $settingsBackup = Backup-ZapretSettings $destRoot
+        Write-Host ("  Saved " + $settingsBackup.Files.Count + " setting file(s)") -ForegroundColor Cyan
+        foreach ($f in $settingsBackup.Files) {
+            Write-Host ("    · " + $f) -ForegroundColor DarkGray
+        }
+    }
+
+    Write-Step "Downloading from Google Drive (overwrite)..."
     $result = Download-DriveFolder $FolderId $destRoot 0
+
+    $restored = 0
+    if ($settingsBackup) {
+        Write-Step "Restoring user settings..."
+        $restored = Restore-ZapretSettings $destRoot $settingsBackup
+        Write-Host ("  Restored: $restored") -ForegroundColor Green
+    }
 
     Write-Host ""
     $color = if ($result.Fail -eq 0) { "Green" } else { "Yellow" }
-    Write-Host ("  Done: OK={0}, FAIL={1}" -f $result.Ok, $result.Fail) -ForegroundColor $color
+    Write-Host ("  Done: OK={0}, FAIL={1}, SETTINGS={2}" -f $result.Ok, $result.Fail, $restored) -ForegroundColor $color
     Write-Host "  $destRoot" -ForegroundColor Gray
 
     $winws = Join-Path $destRoot "bin\winws.exe"
