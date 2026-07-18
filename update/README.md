@@ -17,8 +17,8 @@
 
 ```json
 {
-  "version": "1.0.6",
-  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.6/ZapretikApp.exe",
+  "version": "1.0.7",
+  "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.7/ZapretikApp.exe",
   "sha256": "хеш_sha256_от_exe_в_нижнем_регистре",
   "notes": "Что нового (показывается в окне обновления)"
 }
@@ -26,7 +26,7 @@
 
 ## Как выкатить обновление
 
-1. Подними `AppVersion.Current` и `AssemblyVersion` / `AssemblyFileVersion` (например `1.0.6`).
+1. Подними `AppVersion.Current` и `AssemblyVersion` / `AssemblyFileVersion` (например `1.0.7`).
 2. Собери Release: `ZapretikApp\bin\Release\ZapretikApp.exe`
 3. Посчитай SHA256:
    ```powershell
@@ -34,11 +34,12 @@
    ```
 4. Обнови `update/latest.json` (version, url, sha256, notes).
 5. Закоммить и запушь в `main`.
-6. Создай GitHub Release `v1.0.6`, приложи:
+6. Создай GitHub Release `v1.0.7`, приложи:
    - `ZapretikApp.exe`
    - `ZapretikApp.exe.config` (если есть)
    - **`latest.json`** (копия из `update/`) — чтобы `releases/latest/download/latest.json` работал
-7. Сбрось кэш jsDelivr (иначе старые клиенты 1.0.2 могут видеть 1.0.1):
+   - `Zapretik_Installer.zip` (для новых пользователей)
+7. Сбрось кэш jsDelivr (иначе старые клиенты могут видеть старый latest.json):
    ```
    https://purge.jsdelivr.net/gh/exteriya1337/ZapretikApp@main/update/latest.json
    ```

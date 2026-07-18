@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using DrawingIcon = System.Drawing.Icon;
@@ -234,6 +235,32 @@ namespace ZapretikApp
 
         private static DrawingIcon CreateAppIcon(out IntPtr handle)
         {
+            handle = IntPtr.Zero;
+
+            // Prefer embedded app.ico (same Z on purple as the .exe / taskbar).
+            try
+            {
+                var uri = new Uri("pack://application:,,,/app.ico", UriKind.Absolute);
+                var info = System.Windows.Application.GetResourceStream(uri);
+                if (info != null && info.Stream != null)
+                {
+                    using (info.Stream)
+                    using (var ms = new MemoryStream())
+                    {
+                        info.Stream.CopyTo(ms);
+                        ms.Position = 0;
+                        using (var tmp = new DrawingIcon(ms, 32, 32))
+                        {
+                            return (DrawingIcon)tmp.Clone();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fall back to runtime-drawn icon.
+            }
+
             using (var bmp = new Bitmap(32, 32))
             {
                 using (var g = Graphics.FromImage(bmp))
@@ -248,7 +275,11 @@ namespace ZapretikApp
                         Color.FromArgb(255, 90, 106, 224),
                         45f))
                     {
-                        g.FillEllipse(brush, 1, 1, 30, 30);
+                        // Match app.ico rounded square look.
+                        using (var path = RoundedRect(new Rectangle(1, 1, 30, 30), 8))
+                        {
+                            g.FillPath(brush, path);
+                        }
                     }
 
                     using (var font = new Font("Segoe UI", 15f, FontStyle.Bold, GraphicsUnit.Pixel))
@@ -270,6 +301,18 @@ namespace ZapretikApp
                     return (DrawingIcon)tmp.Clone();
                 }
             }
+        }
+
+        private static GraphicsPath RoundedRect(Rectangle bounds, int radius)
+        {
+            var path = new GraphicsPath();
+            var d = radius * 2;
+            path.AddArc(bounds.X, bounds.Y, d, d, 180, 90);
+            path.AddArc(bounds.Right - d, bounds.Y, d, d, 270, 90);
+            path.AddArc(bounds.Right - d, bounds.Bottom - d, d, d, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
         }
 
         public void Dispose()

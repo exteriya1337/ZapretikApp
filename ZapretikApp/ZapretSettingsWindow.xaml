@@ -1,0 +1,286 @@
+<Window x:Class="ZapretikApp.ZapretSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Настройки Zapret"
+        Icon="pack://application:,,,/app.ico"
+        Height="560"
+        Width="480"
+        MinHeight="480"
+        MinWidth="420"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="CanMinimize"
+        FontFamily="Segoe UI"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        Cursor="Arrow"
+        ForceCursor="True"
+        ShowInTaskbar="False">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="TextPrimary" Color="#FFF0F0F2"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#FFA8A8B0"/>
+        <SolidColorBrush x:Key="BorderMuted" Color="#FF4A4A52"/>
+        <SolidColorBrush x:Key="Accent" Color="#FF7C8CFF"/>
+        <SolidColorBrush x:Key="BgCard" Color="#FF3E3E44"/>
+
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.48" x:Name="Icon"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Icon" Property="Opacity" Value="1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="GhostButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="Transparent"
+                                BorderBrush="#664A4A52"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.75" x:Name="Label"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Label" Property="Opacity" Value="1"/>
+                                <Setter TargetName="Root" Property="Background" Value="#22FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{StaticResource Accent}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.95" x:Name="Label"
+                                              TextElement.Foreground="White"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF9AA6FF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ChipButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+
+        <Style x:Key="ChipOnButton" TargetType="Button" BasedOn="{StaticResource AccentButton}">
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+
+        <Style x:Key="RowBorder" TargetType="Border">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#334A4A52"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="12"
+            CornerRadius="14"
+            BorderBrush="#664A4A52"
+            BorderThickness="1"
+            Background="#FF2B2B2E">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.45" Color="Black"/>
+        </Border.Effect>
+
+        <DockPanel>
+            <Border DockPanel.Dock="Top"
+                    Height="36"
+                    Background="#10FFFFFF"
+                    CornerRadius="13,13,0,0"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid Margin="14,0,6,0">
+                    <TextBlock Text="Настройки Zapret"
+                               Foreground="{StaticResource TextPrimary}"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <Button HorizontalAlignment="Right"
+                            Style="{StaticResource CaptionButton}"
+                            Click="BtnClose_Click"
+                            ToolTip="Закрыть">
+                        <Path Data="M 0,0 L 9,9 M 9,0 L 0,9"
+                              Stroke="White" StrokeThickness="1.5"
+                              Width="9" Height="9"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Padding="20,16,20,18">
+                <StackPanel>
+                    <!-- Status (service.bat → 3) -->
+                    <Border Style="{StaticResource RowBorder}">
+                        <DockPanel LastChildFill="True">
+                            <Button x:Name="BtnRefreshStatus"
+                                    DockPanel.Dock="Right"
+                                    Content="Обновить"
+                                    Style="{StaticResource GhostButton}"
+                                    VerticalAlignment="Top"
+                                    Margin="12,0,0,0"
+                                    Click="BtnRefreshStatus_Click"/>
+                            <StackPanel>
+                                <TextBlock Text="Статус"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="Как пункт 3 в service.bat — служба, стратегия и winws."
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,3,0,8"/>
+                                <TextBlock x:Name="TxtStatus"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontSize="12"
+                                           LineHeight="18"
+                                           TextWrapping="Wrap"
+                                           Text="—"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- IP list -->
+                    <Border Style="{StaticResource RowBorder}">
+                        <DockPanel LastChildFill="True">
+                            <Button x:Name="BtnOpenIp"
+                                    DockPanel.Dock="Right"
+                                    Content="Открыть"
+                                    Style="{StaticResource AccentButton}"
+                                    VerticalAlignment="Center"
+                                    Margin="12,0,0,0"
+                                    Click="BtnOpenIp_Click"/>
+                            <StackPanel>
+                                <TextBlock Text="IP-адреса"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock x:Name="TxtIpSummary"
+                                           Text="lists\ipset-all.txt"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,3,0,0"/>
+                                <TextBlock Text="После добавления или удаления IP zapret будет перезапущен, если он онлайн."
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Opacity="0.85"
+                                           Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Game Filter (service.bat → 4) -->
+                    <Border Style="{StaticResource RowBorder}">
+                        <StackPanel>
+                            <TextBlock Text="Game Filter"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Пункт 4 в service.bat. Расширяет диапазон портов для игр (нужен перезапуск zapret)."
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Margin="0,3,0,10"/>
+                            <TextBlock x:Name="TxtGameFilter"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,8"
+                                       Text="Сейчас: выкл"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="BtnGfOff" Content="Выкл" Style="{StaticResource ChipButton}" Click="BtnGameFilter_Click" Tag="Disabled"/>
+                                <Button x:Name="BtnGfAll" Content="TCP+UDP" Style="{StaticResource ChipButton}" Click="BtnGameFilter_Click" Tag="All"/>
+                                <Button x:Name="BtnGfTcp" Content="TCP" Style="{StaticResource ChipButton}" Click="BtnGameFilter_Click" Tag="Tcp"/>
+                                <Button x:Name="BtnGfUdp" Content="UDP" Style="{StaticResource ChipButton}" Click="BtnGameFilter_Click" Tag="Udp"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- IPSet Filter (service.bat → 5) -->
+                    <Border Style="{StaticResource RowBorder}" Margin="0">
+                        <DockPanel LastChildFill="True">
+                            <Button x:Name="BtnIpsetCycle"
+                                    DockPanel.Dock="Right"
+                                    Content="Переключить"
+                                    Style="{StaticResource GhostButton}"
+                                    VerticalAlignment="Center"
+                                    Margin="12,0,0,0"
+                                    Click="BtnIpsetCycle_Click"/>
+                            <StackPanel>
+                                <TextBlock Text="IPSet Filter"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock Text="Пункт 5 в service.bat: loaded → none → any → loaded."
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,3,0,6"/>
+                                <TextBlock x:Name="TxtIpsetFilter"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           Text="Сейчас: —"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</Window>

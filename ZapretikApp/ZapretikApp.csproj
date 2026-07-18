@@ -14,6 +14,7 @@
     <WarningLevel>4</WarningLevel>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -67,6 +68,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="ZapretSettingsWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="AppDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -83,6 +88,10 @@
       <DependentUpon>IpsetEditorWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ZapretSettingsWindow.xaml.cs">
+      <DependentUpon>ZapretSettingsWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="AppDialog.xaml.cs">
       <DependentUpon>AppDialog.xaml</DependentUpon>
       <SubType>Code</SubType>
@@ -91,6 +100,7 @@
     <Compile Include="ActiveScriptInfo.cs" />
     <Compile Include="ZapretProcessInspector.cs" />
     <Compile Include="ZapretServiceManager.cs" />
+    <Compile Include="ZapretSettingsHelper.cs" />
     <Compile Include="IpsetListManager.cs" />
     <Compile Include="TrayIconService.cs" />
     <Compile Include="AutostartHelper.cs" />
@@ -126,6 +136,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="app.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

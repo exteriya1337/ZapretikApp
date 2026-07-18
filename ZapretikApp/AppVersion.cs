@@ -7,7 +7,7 @@ namespace ZapretikApp
     internal static class AppVersion
     {
         /// <summary>Displayed / compared version (Major.Minor.Patch).</summary>
-        public const string Current = "1.0.6";
+        public const string Current = "1.0.7";
 
         /// <summary>
         /// Reference feed URL (jsDelivr). Prefer UpdateChecker multi-source discovery at runtime —

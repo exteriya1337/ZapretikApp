@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace ZapretikApp
 {
@@ -30,6 +31,8 @@ namespace ZapretikApp
             public string Path;
             public int Ok;
             public int Fail;
+            /// <summary>How many user setting files were restored after overwrite.</summary>
+            public int SettingsRestored;
         }
 
         public sealed class ProgressInfo
@@ -42,6 +45,21 @@ namespace ZapretikApp
             public bool IsIndeterminate;
         }
 
+        /// <summary>
+        /// User settings preserved when overwriting an existing Zapret folder
+        /// (Game Filter, IPSet mode, user lists).
+        /// </summary>
+        private static readonly string[] PreserveRelativePaths =
+        {
+            @"utils\game_filter.enabled",
+            @"utils\check_updates.enabled",
+            @"lists\ipset-all.txt",
+            @"lists\ipset-all.txt.backup",
+            @"lists\ipset-exclude-user.txt",
+            @"lists\list-general-user.txt",
+            @"lists\list-exclude-user.txt"
+        };
+
         public static string GetDefaultDestination()
         {
             var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
@@ -52,9 +70,11 @@ namespace ZapretikApp
 
         /// <summary>
         /// Downloads the whole Drive folder into <paramref name="destRoot"/>.
+        /// If the folder already has Zapret, user settings are backed up and restored after overwrite.
         /// Optional <paramref name="progress"/> receives progress snapshots (any thread).
+        /// Throws <see cref="OperationCanceledException"/> if <paramref name="cancel"/> is signalled.
         /// </summary>
-        public static Result Download(string destRoot, Action<ProgressInfo> progress)
+        public static Result Download(string destRoot, Action<ProgressInfo> progress, CancellationToken cancel = default(CancellationToken))
         {
             if (string.IsNullOrWhiteSpace(destRoot))
                 throw new ArgumentException("Путь назначения не задан.", "destRoot");
@@ -67,12 +87,24 @@ namespace ZapretikApp
             {
             }
 
+            cancel.ThrowIfCancellationRequested();
             Directory.CreateDirectory(destRoot);
 
-            Report(progress, "Получение списка файлов…", 0, 0, 0, indeterminate: true);
+            var existing = File.Exists(Path.Combine(destRoot, "bin", "winws.exe")) ||
+                           File.Exists(Path.Combine(destRoot, "service.bat"));
+            Dictionary<string, byte[]> preserved = null;
+            if (existing)
+            {
+                Report(progress, "Сохранение настроек Zapret…", 1, 0, 0, indeterminate: true);
+                preserved = BackupUserSettings(destRoot);
+            }
+
+            Report(progress, "Получение списка файлов…", 2, 0, 0, indeterminate: true);
 
             var jobs = new List<DownloadJob>();
-            CollectJobs(AppVersion.ZapretDriveFolderId, destRoot, 0, jobs, progress);
+            CollectJobs(AppVersion.ZapretDriveFolderId, destRoot, 0, jobs, progress, cancel);
+
+            cancel.ThrowIfCancellationRequested();
 
             if (jobs.Count == 0)
             {
@@ -87,9 +119,13 @@ namespace ZapretikApp
 
             for (var i = 0; i < jobs.Count; i++)
             {
+                cancel.ThrowIfCancellationRequested();
+
                 var job = jobs[i];
                 var doneBefore = i;
                 var percent = total > 0 ? (100.0 * doneBefore) / total : 0;
+                // Reserve top ~5% for restore step
+                percent = percent * 0.95;
                 Report(
                     progress,
                     "Скачивание: " + job.DisplayName + "  (" + (i + 1) + "/" + total + ")",
@@ -98,13 +134,17 @@ namespace ZapretikApp
                     total,
                     indeterminate: false);
 
-                if (DownloadFile(job.FileId, job.DestPath))
+                if (DownloadFile(job.FileId, job.DestPath, cancel))
                     ok++;
                 else
+                {
+                    cancel.ThrowIfCancellationRequested();
                     fail++;
+                }
 
                 var done = i + 1;
                 percent = total > 0 ? (100.0 * done) / total : 100;
+                percent = percent * 0.95;
                 Report(
                     progress,
                     "Скачано: " + job.DisplayName + "  (" + done + "/" + total + ")",
@@ -114,11 +154,20 @@ namespace ZapretikApp
                     indeterminate: false);
             }
 
+            cancel.ThrowIfCancellationRequested();
+
             if (ok == 0)
             {
                 throw new InvalidOperationException(
                     "Не удалось скачать ни одного файла с Google Drive.\n" +
                     "Откройте вручную:\n" + AppVersion.ZapretDownloadUrl);
+            }
+
+            var restored = 0;
+            if (preserved != null && preserved.Count > 0)
+            {
+                Report(progress, "Восстановление настроек…", 96, ok + fail, total, indeterminate: false);
+                restored = RestoreUserSettings(destRoot, preserved);
             }
 
             var winws = Path.Combine(destRoot, "bin", "winws.exe");
@@ -129,13 +178,91 @@ namespace ZapretikApp
                     "Проверьте папку:\n" + destRoot);
             }
 
-            Report(progress, "Готово: " + ok + " файл(ов)", 100, ok + fail, total, indeterminate: false);
+            var doneMsg = "Готово: " + ok + " файл(ов)";
+            if (restored > 0)
+                doneMsg += ", настроек сохранено: " + restored;
+
+            Report(progress, doneMsg, 100, ok + fail, total, indeterminate: false);
             return new Result
             {
                 Path = destRoot,
                 Ok = ok,
-                Fail = fail
+                Fail = fail,
+                SettingsRestored = restored
             };
+        }
+
+        private static Dictionary<string, byte[]> BackupUserSettings(string destRoot)
+        {
+            var map = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+            var rels = new List<string>(PreserveRelativePaths);
+
+            try
+            {
+                var listsDir = Path.Combine(destRoot, "lists");
+                if (Directory.Exists(listsDir))
+                {
+                    foreach (var f in Directory.GetFiles(listsDir, "*-user.txt"))
+                    {
+                        var rel = Path.Combine("lists", Path.GetFileName(f));
+                        if (!rels.Exists(r => string.Equals(r, rel, StringComparison.OrdinalIgnoreCase)))
+                            rels.Add(rel);
+                    }
+                }
+
+                var utilsDir = Path.Combine(destRoot, "utils");
+                if (Directory.Exists(utilsDir))
+                {
+                    foreach (var f in Directory.GetFiles(utilsDir, "*.enabled"))
+                    {
+                        var rel = Path.Combine("utils", Path.GetFileName(f));
+                        if (!rels.Exists(r => string.Equals(r, rel, StringComparison.OrdinalIgnoreCase)))
+                            rels.Add(rel);
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            foreach (var rel in rels)
+            {
+                try
+                {
+                    var full = Path.Combine(destRoot, rel);
+                    if (File.Exists(full))
+                        map[rel] = File.ReadAllBytes(full);
+                }
+                catch
+                {
+                }
+            }
+
+            return map;
+        }
+
+        private static int RestoreUserSettings(string destRoot, Dictionary<string, byte[]> preserved)
+        {
+            if (preserved == null || preserved.Count == 0)
+                return 0;
+
+            var n = 0;
+            foreach (var kv in preserved)
+            {
+                try
+                {
+                    var full = Path.Combine(destRoot, kv.Key);
+                    var parent = Path.GetDirectoryName(full);
+                    if (!string.IsNullOrEmpty(parent))
+                        Directory.CreateDirectory(parent);
+                    File.WriteAllBytes(full, kv.Value);
+                    n++;
+                }
+                catch
+                {
+                }
+            }
+            return n;
         }
 
         private static void CollectJobs(
@@ -143,8 +270,11 @@ namespace ZapretikApp
             string destDir,
             int depth,
             List<DownloadJob> jobs,
-            Action<ProgressInfo> progress)
+            Action<ProgressInfo> progress,
+            CancellationToken cancel)
         {
+            cancel.ThrowIfCancellationRequested();
+
             if (depth > 8)
                 return;
 
@@ -160,12 +290,14 @@ namespace ZapretikApp
             var items = ListFolder(folderId);
             foreach (var item in items)
             {
+                cancel.ThrowIfCancellationRequested();
+
                 var safeName = SanitizeFileName(item.Name);
                 var target = Path.Combine(destDir, safeName);
 
                 if (item.IsFolder)
                 {
-                    CollectJobs(item.Id, target, depth + 1, jobs, progress);
+                    CollectJobs(item.Id, target, depth + 1, jobs, progress, cancel);
                     continue;
                 }
 
@@ -232,7 +364,7 @@ namespace ZapretikApp
             return list;
         }
 
-        private static bool DownloadFile(string fileId, string destPath)
+        private static bool DownloadFile(string fileId, string destPath, CancellationToken cancel)
         {
             var urls = new[]
             {
@@ -243,6 +375,7 @@ namespace ZapretikApp
             var tmp = destPath + ".partial";
             foreach (var url in urls)
             {
+                cancel.ThrowIfCancellationRequested();
                 try
                 {
                     if (File.Exists(tmp))
@@ -250,7 +383,7 @@ namespace ZapretikApp
                         try { File.Delete(tmp); } catch { }
                     }
 
-                    DownloadToFile(url, tmp);
+                    DownloadToFile(url, tmp, cancel);
                     if (!File.Exists(tmp))
                         continue;
 
@@ -262,10 +395,11 @@ namespace ZapretikApp
                         if (!uuidMatch.Success)
                             continue;
 
+                        cancel.ThrowIfCancellationRequested();
                         var retry =
                             "https://drive.usercontent.google.com/download?id=" + fileId +
                             "&export=download&confirm=t&uuid=" + uuidMatch.Groups[1].Value;
-                        DownloadToFile(retry, tmp);
+                        DownloadToFile(retry, tmp, cancel);
                         len = new FileInfo(tmp).Length;
                         if (LooksLikeHtml(tmp, len))
                             continue;
@@ -279,6 +413,18 @@ namespace ZapretikApp
                         File.Delete(destPath);
                     File.Move(tmp, destPath);
                     return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    try
+                    {
+                        if (File.Exists(tmp))
+                            File.Delete(tmp);
+                    }
+                    catch
+                    {
+                    }
+                    throw;
                 }
                 catch
                 {
@@ -338,7 +484,7 @@ namespace ZapretikApp
             }
         }
 
-        private static void DownloadToFile(string url, string path)
+        private static void DownloadToFile(string url, string path, CancellationToken cancel)
         {
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "GET";
@@ -354,7 +500,14 @@ namespace ZapretikApp
             {
                 if (stream == null)
                     throw new InvalidOperationException("Пустой ответ сервера.");
-                stream.CopyTo(fs);
+
+                var buffer = new byte[81920];
+                int read;
+                while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    cancel.ThrowIfCancellationRequested();
+                    fs.Write(buffer, 0, read);
+                }
             }
         }
 

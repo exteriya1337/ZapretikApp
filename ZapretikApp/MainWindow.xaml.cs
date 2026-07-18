@@ -26,9 +26,6 @@ namespace ZapretikApp
         /// </summary>
         private static readonly string[] ZapretEngineProcessNames = { "winws", "winvs" };
 
-        private static readonly Brush DotOnlineBrush = new SolidColorBrush(Color.FromRgb(0x6F, 0xCF, 0x97));
-        private static readonly Brush DotOfflineBrush = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x92));
-
         private bool _isClosingAnimated;
         private bool _exitRequested;
         private bool _suppressBatSelectionSave;
@@ -49,9 +46,12 @@ namespace ZapretikApp
         private bool _statusCheckBusy;
         private readonly DispatcherTimer _uptimeTimer;
         private readonly DispatcherTimer _statusTimer;
-        private Storyboard _pulseStoryboard;
         private TrayIconService _tray;
         private RegisteredWaitHandle _showWaitHandle;
+        private CancellationTokenSource _downloadCts;
+        private bool _downloadBusy;
+        private IpsetEditorWindow _ipsetWindow;
+        private ZapretSettingsWindow _zapretSettingsWindow;
 
         public MainWindow()
         {
@@ -62,9 +62,6 @@ namespace ZapretikApp
             TxtMachineName.Text = Environment.MachineName;
             TxtAppVersion.Text = AppVersion.Display;
             TxtAppVersion.ToolTip = "Zapretik " + AppVersion.Current;
-
-            DotOnlineBrush.Freeze();
-            DotOfflineBrush.Freeze();
 
             // Light: only refresh uptime text (no animations, no process scans).
             _uptimeTimer = new DispatcherTimer
@@ -91,7 +88,6 @@ namespace ZapretikApp
             LoadLastLaunchInfo();
             LoadZapretPath();
 
-            _pulseStoryboard = (Storyboard)FindResource("OnlinePulseStoryboard");
             RefreshOnlineStatus(forceUi: true, resolveScript: true);
             _uptimeTimer.Start();
             _statusTimer.Start();
@@ -115,6 +111,11 @@ namespace ZapretikApp
             {
                 enter.Begin(this);
             }
+            else
+            {
+                // Tray start skips enter animation — keep chrome ready so ShowFromTray is visible.
+                EnsureWindowChromeVisible(animated: false);
+            }
 
             // Always check for updates (including --tray autostart). Prompt when window is open;
             // if still in tray, show balloon and prompt on first open.
@@ -122,6 +123,74 @@ namespace ZapretikApp
             {
                 StartBackgroundUpdateCheck();
             }), DispatcherPriority.ApplicationIdle);
+        }
+
+        /// <summary>
+        /// WindowChrome starts at Opacity=0 for the enter animation. If that storyboard
+        /// never runs (e.g. --tray) or was interrupted, the window can be "shown" but fully transparent.
+        /// </summary>
+        private void EnsureWindowChromeVisible(bool animated)
+        {
+            if (WindowChrome == null)
+                return;
+
+            WindowChrome.BeginAnimation(UIElement.OpacityProperty, null);
+            if (RootScale != null)
+            {
+                RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                RootScale.ScaleX = 1;
+                RootScale.ScaleY = 1;
+            }
+
+            if (CardLeft != null) CardLeft.BeginAnimation(UIElement.OpacityProperty, null);
+            if (CardRight != null) CardRight.BeginAnimation(UIElement.OpacityProperty, null);
+            if (CardBottom != null) CardBottom.BeginAnimation(UIElement.OpacityProperty, null);
+            if (FooterActions != null) FooterActions.BeginAnimation(UIElement.OpacityProperty, null);
+
+            if (CardLeft != null) CardLeft.Opacity = 1;
+            if (CardRight != null) CardRight.Opacity = 1;
+            if (CardBottom != null) CardBottom.Opacity = 1;
+            if (FooterActions != null) FooterActions.Opacity = 1;
+
+            // Reset card translate if still sitting under the enter-transform.
+            ResetCardEnterOffset(CardLeft);
+            ResetCardEnterOffset(CardRight);
+            ResetCardEnterOffset(CardBottom);
+
+            if (!animated)
+            {
+                WindowChrome.Opacity = 1;
+                return;
+            }
+
+            if (WindowChrome.Opacity >= 0.99)
+            {
+                WindowChrome.Opacity = 1;
+                return;
+            }
+
+            var fade = new DoubleAnimation
+            {
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(200),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            WindowChrome.BeginAnimation(UIElement.OpacityProperty, fade);
+        }
+
+        private static void ResetCardEnterOffset(FrameworkElement card)
+        {
+            if (card == null)
+                return;
+
+            var group = card.RenderTransform as TransformGroup;
+            if (group == null || group.Children.Count == 0)
+                return;
+
+            var translate = group.Children[0] as TranslateTransform;
+            if (translate != null)
+                translate.Y = 0;
         }
 
         /// <summary>
@@ -368,47 +437,82 @@ namespace ZapretikApp
             _tray.RebuildMenu(_batFiles, _isOnline, active, selectedName);
         }
 
+        /// <summary>True when the window is fully hidden (tray only), not merely minimized to taskbar.</summary>
         private bool IsInTray
         {
-            get { return !IsVisible || WindowState == WindowState.Minimized; }
+            get { return !IsVisible; }
         }
 
         /// <summary>
-        /// When hidden in tray — slow down polling and stop UI animations to save CPU.
+        /// When hidden in tray or minimized — slow down polling to save CPU.
         /// </summary>
-        private void ApplyTrayPerformanceMode(bool inTray)
+        private void ApplyTrayPerformanceMode(bool lowPower)
         {
-            if (inTray)
+            if (lowPower)
             {
-                // No need to refresh uptime text while window is hidden.
+                // No need to refresh uptime text while window is hidden/minimized.
                 _uptimeTimer.Stop();
                 // Rare background checks only.
                 _statusTimer.Interval = TimeSpan.FromSeconds(8);
-                StopPulse();
             }
             else
             {
                 if (!_uptimeTimer.IsEnabled)
                     _uptimeTimer.Start();
                 _statusTimer.Interval = TimeSpan.FromSeconds(2);
-                if (_isOnline)
-                    StartPulse();
                 UpdateUptimeText();
             }
         }
 
         private void ShowFromTray()
         {
-            Show();
-            if (WindowState == WindowState.Minimized)
+            // Avoid re-running enter/opacity resets when chrome is already fully visible —
+            // that was causing a visible flicker on every tray left-click.
+            var needChromeFix = WindowChrome != null && WindowChrome.Opacity < 0.99;
+            if (needChromeFix)
+                EnsureWindowChromeVisible(animated: false);
+
+            var wasHidden = !IsVisible;
+            var wasMinimized = WindowState == WindowState.Minimized;
+
+            if (wasHidden)
+                Show();
+            if (wasMinimized)
                 WindowState = WindowState.Normal;
+
+            // Reposition only when restoring from tray (hidden), not on every focus.
+            if (wasHidden)
+            {
+                try
+                {
+                    var wa = SystemParameters.WorkArea;
+                    if (Left + ActualWidth < wa.Left + 40 ||
+                        Top + ActualHeight < wa.Top + 40 ||
+                        Left > wa.Right - 40 ||
+                        Top > wa.Bottom - 40)
+                    {
+                        Left = wa.Left + Math.Max(0, (wa.Width - Width) / 2);
+                        Top = wa.Top + Math.Max(0, (wa.Height - Height) / 2);
+                    }
+                }
+                catch
+                {
+                }
+            }
+
             Activate();
-            Topmost = true;
-            Topmost = false;
+            // Topmost flash only when bringing a hidden/minimized window forward.
+            if (wasHidden || wasMinimized)
+            {
+                Topmost = true;
+                Topmost = false;
+            }
             Focus();
             ApplyTrayPerformanceMode(false);
-            // Quick refresh when user opens the window again.
-            RefreshOnlineStatus(forceUi: true, resolveScript: true);
+
+            // Full status refresh only when the window was not already open.
+            if (wasHidden || wasMinimized)
+                RefreshOnlineStatus(forceUi: true, resolveScript: true);
 
             // If update was found while in tray (or check not started yet) — offer now.
             StartBackgroundUpdateCheck();
@@ -484,8 +588,16 @@ namespace ZapretikApp
 
         private void MainWindow_StateChanged(object sender, EventArgs e)
         {
+            // Minimize → taskbar (normal). Only X / Close hides to tray.
             if (WindowState == WindowState.Minimized)
-                HideToTray();
+            {
+                ApplyTrayPerformanceMode(true);
+            }
+            else if (WindowState == WindowState.Normal || WindowState == WindowState.Maximized)
+            {
+                if (IsVisible)
+                    ApplyTrayPerformanceMode(false);
+            }
         }
 
         private void WindowChrome_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -528,7 +640,8 @@ namespace ZapretikApp
 
         private void BtnMinimize_Click(object sender, RoutedEventArgs e)
         {
-            HideToTray();
+            // Taskbar minimize — not tray hide.
+            WindowState = WindowState.Minimized;
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
@@ -990,7 +1103,6 @@ namespace ZapretikApp
             {
                 UiAnimation.SetText(TxtConnectionStatus, "Онлайн");
                 UiAnimation.SetText(TxtStatusCardConnection, "Онлайн");
-                OnlineDot.Fill = DotOnlineBrush;
 
                 string activeName;
                 string activeTip;
@@ -1015,23 +1127,16 @@ namespace ZapretikApp
                 SetStartButtonContent("Сменить стратегию");
                 BtnStop.Visibility = Visibility.Visible;
                 UpdateUptimeText();
-                StartPulse();
-                // No PulseElement here — scale animation every status flip is expensive.
             }
             else
             {
                 UiAnimation.SetText(TxtConnectionStatus, "Отключен");
                 UiAnimation.SetText(TxtStatusCardConnection, "Отключен");
-                OnlineDot.Fill = DotOfflineBrush;
-                OnlineDot.Opacity = 1;
-                OnlineDotScale.ScaleX = 1;
-                OnlineDotScale.ScaleY = 1;
                 UiAnimation.SetText(TxtActiveBat, "—");
                 TxtActiveBat.ToolTip = "Процесс winws не найден";
                 TxtUptime.Text = "—";
                 SetStartButtonContent("Установить службу");
                 BtnStop.Visibility = Visibility.Collapsed;
-                StopPulse();
 
                 // Clear in-session launch memory when offline.
                 _activeBat = null;
@@ -1106,26 +1211,6 @@ namespace ZapretikApp
                 BtnStart.BeginAnimation(UIElement.OpacityProperty, fadeIn);
             };
             BtnStart.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-        }
-
-        private void StartPulse()
-        {
-            if (_pulseStoryboard == null)
-                return;
-
-            _pulseStoryboard.Stop(this);
-            _pulseStoryboard.Begin(this, true);
-        }
-
-        private void StopPulse()
-        {
-            if (_pulseStoryboard == null)
-                return;
-
-            _pulseStoryboard.Stop(this);
-            OnlineDot.Opacity = 1;
-            OnlineDotScale.ScaleX = 1;
-            OnlineDotScale.ScaleY = 1;
         }
 
         private void SaveLastLaunch(BatFileItem bat)
@@ -1216,17 +1301,63 @@ namespace ZapretikApp
             }
         }
 
+        private void BtnSettings_Click(object sender, RoutedEventArgs e)
+        {
+            ShowSettings(true);
+        }
+
+        private void BtnCloseSettings_Click(object sender, RoutedEventArgs e)
+        {
+            ShowSettings(false);
+        }
+
+        private void SettingsOverlayDim_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            ShowSettings(false);
+            e.Handled = true;
+        }
+
+        private void ShowSettings(bool show)
+        {
+            if (SettingsOverlay == null)
+                return;
+
+            if (show)
+                RefreshAutostartButton();
+
+            SettingsOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        }
+
         private void BtnNoZapret_Click(object sender, RoutedEventArgs e)
         {
+            if (_downloadBusy)
+                return;
+
             var dest = ZapretDriveDownloader.GetDefaultDestination();
+            var existing = Directory.Exists(dest) &&
+                           (File.Exists(Path.Combine(dest, "bin", "winws.exe")) ||
+                            File.Exists(Path.Combine(dest, "service.bat")));
             var confirm =
                 "Скачать Zapret с Google Drive и сразу указать путь в Zapretik?\n\n" +
                 "Папка:\n" + dest + "\n\n" +
-                "Существующие файлы в этой папке будут перезаписаны.\n" +
+                (existing
+                    ? "Папка уже есть: дистрибутив будет обновлён.\n" +
+                      "Настройки сохранятся (IP-список, Game Filter, user-листы).\n\n"
+                    : string.Empty) +
                 "Загрузка может занять несколько минут.";
 
             if (!AppDialog.Confirm(this, confirm, "Скачать Zapret"))
                 return;
+
+            // Close settings so the progress bar on the main path card is visible.
+            ShowSettings(false);
+
+            if (_downloadCts != null)
+            {
+                try { _downloadCts.Dispose(); } catch { }
+            }
+            _downloadCts = new CancellationTokenSource();
+            var token = _downloadCts.Token;
 
             SetDownloadUiBusy(true);
             ShowDownloadProgress("Подготовка…", 0, indeterminate: true);
@@ -1242,6 +1373,8 @@ namespace ZapretikApp
                             return;
                         Dispatcher.BeginInvoke(new Action(() =>
                         {
+                            if (!_downloadBusy)
+                                return;
                             ShowDownloadProgress(
                                 info.Message,
                                 info.Percent,
@@ -1249,7 +1382,7 @@ namespace ZapretikApp
                             if (!string.IsNullOrWhiteSpace(info.Message))
                                 UiAnimation.SetText(TxtStatusDescription, info.Message, slide: false);
                         }));
-                    });
+                    }, token);
 
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
@@ -1264,6 +1397,10 @@ namespace ZapretikApp
                             result.Path + "\n\n" +
                             "Файлов: " + result.Ok +
                             (result.Fail > 0 ? (" (ошибок: " + result.Fail + ")") : string.Empty) +
+                            (result.SettingsRestored > 0
+                                ? ("\nНастройки сохранены: " + result.SettingsRestored +
+                                   " (IP-список, Game Filter, user-листы)")
+                                : string.Empty) +
                             "\n\nВыберите стратегию в списке справа и нажмите «Запустить».";
 
                         AppDialog.Show(
@@ -1274,12 +1411,28 @@ namespace ZapretikApp
                             MessageBoxImage.Information);
                     }));
                 }
+                catch (OperationCanceledException)
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        SetDownloadUiBusy(false);
+                        HideDownloadProgress();
+                        UiAnimation.SetText(TxtStatusDescription, "Скачивание Zapret отменено", slide: false);
+                    }));
+                }
                 catch (Exception ex)
                 {
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         SetDownloadUiBusy(false);
                         HideDownloadProgress();
+
+                        if (ex is OperationCanceledException ||
+                            (ex.InnerException is OperationCanceledException))
+                        {
+                            UiAnimation.SetText(TxtStatusDescription, "Скачивание Zapret отменено", slide: false);
+                            return;
+                        }
 
                         UiAnimation.SetText(
                             TxtStatusDescription,
@@ -1298,12 +1451,35 @@ namespace ZapretikApp
             });
         }
 
+        private void BtnCancelDownload_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_downloadBusy || _downloadCts == null)
+                return;
+
+            try
+            {
+                _downloadCts.Cancel();
+            }
+            catch
+            {
+            }
+
+            if (BtnCancelDownload != null)
+                BtnCancelDownload.IsEnabled = false;
+            if (TxtDownloadProgress != null)
+                TxtDownloadProgress.Text = "Отмена…";
+            UiAnimation.SetText(TxtStatusDescription, "Отмена скачивания…", slide: false);
+        }
+
         private void SetDownloadUiBusy(bool busy)
         {
+            _downloadBusy = busy;
             if (BtnNoZapret != null)
                 BtnNoZapret.IsEnabled = !busy;
             if (BtnBrowseZapretCard != null)
                 BtnBrowseZapretCard.IsEnabled = !busy;
+            if (BtnCancelDownload != null)
+                BtnCancelDownload.IsEnabled = busy;
         }
 
         private void ShowDownloadProgress(string message, double percent, bool indeterminate)
@@ -1419,36 +1595,19 @@ namespace ZapretikApp
         private void RefreshIpsetUi()
         {
             var ready = !string.IsNullOrWhiteSpace(_zapretRootPath) && Directory.Exists(_zapretRootPath);
-            BtnOpenIpset.IsEnabled = ready;
-
-            if (!ready)
+            if (BtnZapretSettings != null)
             {
-                BtnOpenIpset.ToolTip = "Сначала укажите папку Zapret";
-                return;
+                BtnZapretSettings.IsEnabled = ready;
+                BtnZapretSettings.ToolTip = ready
+                    ? "Настройки Zapret: IP, статус, Game Filter, IPSet Filter"
+                    : "Сначала укажите папку Zapret";
             }
 
-            try
-            {
-                var path = IpsetListManager.GetFilePath(_zapretRootPath);
-                if (!File.Exists(path))
-                {
-                    BtnOpenIpset.Content = "IP-адреса…";
-                    BtnOpenIpset.ToolTip = "lists\\ipset-all.txt — файл ещё не создан";
-                    return;
-                }
-
-                var count = IpsetListManager.CountEntries(_zapretRootPath);
-                BtnOpenIpset.Content = "IP · " + count.ToString("N0");
-                BtnOpenIpset.ToolTip = path + Environment.NewLine + "Добавить / удалить записи";
-            }
-            catch
-            {
-                BtnOpenIpset.Content = "IP-адреса…";
-                BtnOpenIpset.ToolTip = "Ошибка чтения ipset-all.txt";
-            }
+            if (_zapretSettingsWindow != null)
+                _zapretSettingsWindow.RefreshAll();
         }
 
-        private void BtnOpenIpset_Click(object sender, RoutedEventArgs e)
+        private void BtnZapretSettings_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(_zapretRootPath) || !Directory.Exists(_zapretRootPath))
             {
@@ -1457,12 +1616,117 @@ namespace ZapretikApp
                 return;
             }
 
-            var dialog = new IpsetEditorWindow(_zapretRootPath)
+            if (_zapretSettingsWindow != null)
+            {
+                if (_zapretSettingsWindow.WindowState == WindowState.Minimized)
+                    _zapretSettingsWindow.WindowState = WindowState.Normal;
+                _zapretSettingsWindow.Activate();
+                _zapretSettingsWindow.Focus();
+                _zapretSettingsWindow.RefreshAll();
+                return;
+            }
+
+            _zapretSettingsWindow = new ZapretSettingsWindow(
+                _zapretRootPath,
+                isZapretOnline: () => _isOnline || IsZapretEngineRunning() || ZapretProcessInspector.IsZapretServiceRunning(),
+                openIpEditor: OpenIpsetEditor,
+                restartZapretIfOnline: reason => RestartZapretService(reason));
+            _zapretSettingsWindow.Owner = this;
+            _zapretSettingsWindow.Closed += (s, args) =>
+            {
+                _zapretSettingsWindow = null;
+            };
+            _zapretSettingsWindow.Show();
+        }
+
+        private void OpenIpsetEditor()
+        {
+            if (string.IsNullOrWhiteSpace(_zapretRootPath) || !Directory.Exists(_zapretRootPath))
+            {
+                AppDialog.Show(this, "Сначала укажите папку Zapret.", "Zapretik",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (_ipsetWindow != null)
+            {
+                if (_ipsetWindow.WindowState == WindowState.Minimized)
+                    _ipsetWindow.WindowState = WindowState.Normal;
+                _ipsetWindow.Activate();
+                _ipsetWindow.Focus();
+                return;
+            }
+
+            _ipsetWindow = new IpsetEditorWindow(_zapretRootPath)
             {
                 Owner = this
             };
-            dialog.ShowDialog();
-            RefreshIpsetUi();
+            _ipsetWindow.EntriesChanged += () =>
+            {
+                if (_zapretSettingsWindow != null)
+                    _zapretSettingsWindow.RefreshAll();
+            };
+            _ipsetWindow.Closed += (s, args) =>
+            {
+                var changed = _ipsetWindow != null && _ipsetWindow.HadChanges;
+                _ipsetWindow = null;
+                if (_zapretSettingsWindow != null)
+                    _zapretSettingsWindow.RefreshAll();
+
+                // Restart once after the editor closes — not on every add/remove (avoids UAC spam).
+                if (changed &&
+                    (_isOnline || IsZapretEngineRunning() || ZapretProcessInspector.IsZapretServiceRunning()))
+                {
+                    UiAnimation.SetText(TxtStatusDescription, "IP-список изменён — перезапуск zapret…", slide: false);
+                    RestartZapretService("IP-список");
+                }
+            };
+            _ipsetWindow.Show();
+        }
+
+        /// <summary>
+        /// Reinstall currently selected (or active) strategy so Game Filter / IP lists apply.
+        /// </summary>
+        private void RestartZapretService(string reason)
+        {
+            var selected = LstBatFiles.SelectedItem as BatFileItem;
+            if (selected == null && _activeBat != null)
+                selected = _activeBat;
+            if (selected == null && _detectedScript != null)
+            {
+                // Try match from list (Detail often holds full path)
+                foreach (var bat in _batFiles)
+                {
+                    if ((!string.IsNullOrWhiteSpace(_detectedScript.Detail) &&
+                         (string.Equals(bat.FullPath, _detectedScript.Detail, StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(bat.RelativePath, _detectedScript.Detail, StringComparison.OrdinalIgnoreCase))) ||
+                        string.Equals(bat.Name, _detectedScript.DisplayName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        selected = bat;
+                        break;
+                    }
+                }
+            }
+
+            if (selected == null)
+            {
+                AppDialog.Show(
+                    this,
+                    "Нечего перезапускать: выберите стратегию в списке справа.",
+                    "Zapretik",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            if (!string.Equals((LstBatFiles.SelectedItem as BatFileItem)?.FullPath, selected.FullPath, StringComparison.OrdinalIgnoreCase))
+                LstBatFiles.SelectedItem = selected;
+
+            UiAnimation.SetText(
+                TxtStatusDescription,
+                "Перезапуск zapret (" + (reason ?? "настройки") + ")…",
+                slide: false);
+            InstallSelectedStrategy();
         }
 
         private void BtnAutostart_Click(object sender, RoutedEventArgs e)
@@ -1496,8 +1760,11 @@ namespace ZapretikApp
 
         private void RefreshAutostartButton()
         {
+            if (BtnAutostart == null)
+                return;
+
             var on = AutostartHelper.IsEnabled();
-            BtnAutostart.Content = on ? "Автозапуск: вкл" : "Автозапуск: выкл";
+            BtnAutostart.Content = on ? "Вкл" : "Выкл";
             BtnAutostart.ToolTip = on
                 ? "Zapretik запускается с Windows (в трей).\nНажмите, чтобы выключить."
                 : "Нажмите, чтобы запускать Zapretik вместе с Windows.";
