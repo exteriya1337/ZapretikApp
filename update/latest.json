@@ -1,6 +1,6 @@
 {
   "version": "1.0.7",
   "url": "https://github.com/exteriya1337/ZapretikApp/releases/download/v1.0.7/ZapretikApp.exe",
-  "sha256": "94208ec8cddf555b071493dd285ff7d840a71fd90b2a900713f81a318ff04011",
-  "notes": "1.0.7: settings gear for Zapret (IP / status / Game Filter / IPSet), preserve user settings on re-download, installer GUI with progress, tray/minimize fixes, app icon."
+  "sha256": "0418d664d7d038f7bbd9e8210135e1b3f966826a944eb394cbb516b441549774",
+  "notes": "1.0.7: settings gear for Zapret (IP / status / Game Filter / IPSet), custom scrollbars, preserve user settings on re-download, installer GUI, tray/minimize fixes, app icon."
 }
